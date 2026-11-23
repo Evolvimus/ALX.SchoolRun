@@ -12,7 +12,7 @@ export interface Character {
   rarity: Rarity;
   ability: Ability;
   color: number; // Platzhalterfarbe, solange kein Bild da ist
-  price: number; // Preis in ALX-Talern, nach Ende der Kartenaktion
+  price: number; // Preis in Ginkgo-Talern, nach Ende der Kartenaktion
   starter?: boolean;
 }
 

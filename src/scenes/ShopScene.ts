@@ -15,19 +15,19 @@ export class ShopScene extends Phaser.Scene {
     const open = await isShopOpen().catch(() => false);
     loading.destroy();
     if (!open) {
-      this.add.text(480, 260, 'Der Shop öffnet nach dem Ende der Sammelkartenaktion.\nBis dahin: Karten sammeln und Codes einlösen!\n\nSammle schon mal ALX-Taler in den Levels 🪙',
+      this.add.text(480, 260, 'Der Shop öffnet nach dem Ende der Sammelkartenaktion.\nBis dahin: Karten sammeln und Codes einlösen!\n\nSammle schon mal Ginkgo-Taler in den Levels 🪙',
         { fontFamily: FONT, fontSize: '14px', color: '#fff', align: 'center' }).setOrigin(0.5);
       return;
     }
     const locked = TEACHERS.filter(t => !save.unlocked.includes(t.id));
     if (!locked.length) { this.add.text(480, 270, 'Du hast alle Lehrer! 🏆', { fontFamily: FONT, fontSize: '17px', color: '#fff' }).setOrigin(0.5); return; }
-    const info = this.add.text(560, 500, 'Kostenlos – nur mit im Spiel verdienten ALX-Talern', { fontFamily: FONT, fontSize: '10px', color: '#fff' }).setOrigin(0.5);
+    const info = this.add.text(560, 500, 'Kostenlos – nur mit im Spiel verdienten Ginkgo-Talern', { fontFamily: FONT, fontSize: '10px', color: '#fff' }).setOrigin(0.5);
     locked.forEach((t, i) => {
       const x = 75 + (i % 11) * 82, y = 150 + Math.floor(i / 11) * 175;
       const k = card(this, x, y, t, false, 0.7).setInteractive({ useHandCursor: true });
       this.add.text(x, y + 62, `🪙 ${t.price}`, { fontFamily: FONT, fontSize: '9px', color: '#ffd700' }).setOrigin(0.5);
       k.on('pointerup', () => {
-        if (save.coins < t.price) { info.setText(`Dir fehlen noch ${t.price - save.coins} ALX-Taler.`); return; }
+        if (save.coins < t.price) { info.setText(`Dir fehlen noch ${t.price - save.coins} Ginkgo-Taler.`); return; }
         save.coins -= t.price; persist(); unlock(t.id); coins.setText(`🪙 ${save.coins}`);
         this.scene.restart();
       });

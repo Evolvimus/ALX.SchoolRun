@@ -5,6 +5,9 @@ export interface SaveData {
   selected: string;
   coins: number;
   bestTimes: Record<string, number>;
+  bestLeaves: Record<string, number>;
+  progress: number; // höchstes freigeschaltetes Level (Index)
+  muted: boolean;
 }
 const KEY = 'alx-schoolrun-save-v1';
 
@@ -23,7 +26,7 @@ function load(): SaveData {
   return fresh();
 }
 function fresh(): SaveData {
-  return { playerId: uuid(), unlocked: ['schueler'], selected: 'schueler', coins: 0, bestTimes: {} };
+  return { playerId: uuid(), unlocked: ['schueler'], selected: 'schueler', coins: 0, bestTimes: {}, bestLeaves: {}, progress: 0, muted: false };
 }
 
 export const save: SaveData = load();

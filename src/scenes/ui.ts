@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Character, RARITY_COLOR } from '../data/characters';
+import { sfx } from '../services/audio';
 
 export const FONT = '"Press Start 2P", monospace';
 
@@ -16,7 +17,7 @@ export function button(scene: Phaser.Scene, x: number, y: number, label: string,
   const c = scene.add.container(x, y, [bg, txt]).setSize(w, 56).setInteractive({ useHandCursor: true });
   c.on('pointerover', () => bg.setFillStyle(0xffe080));
   c.on('pointerout', () => bg.setFillStyle(0xffcc33));
-  c.on('pointerup', onClick);
+  c.on('pointerup', () => { sfx.click(); onClick(); });
   return c;
 }
 
