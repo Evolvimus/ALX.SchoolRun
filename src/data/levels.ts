@@ -1,10 +1,10 @@
 // Level als Textkarte (1 Zeichen = 1 Kachel à 45 px, 12 Zeilen).
-// #=Boden  ==Plattform  c=Münze  B=Kiste  ^=Stacheln  e=Papierflieger  P=Start  F=Ziel
+// #=Boden  ==Plattform  c=Münze  B=Kiste  ^=Reißzwecken  e=Papierflieger  P=Start  F=Ziel
 export interface Level { id: string; name: string; map: string[]; }
 
 export const LEVELS: Level[] = [{
   id: 'schulhof',
-  name: 'Level 1 – Der Schulhof',
+  name: 'Level 1 – Klassenzimmer',
   map: [
     '                                                                                              ',
     '                                                                                              ',

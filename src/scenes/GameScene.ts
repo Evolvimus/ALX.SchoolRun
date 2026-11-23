@@ -19,6 +19,7 @@ export class GameScene extends Phaser.Scene {
   private done = false;
   private hud!: Phaser.GameObjects.Text;
   private start = new Phaser.Math.Vector2();
+  private bg!: Phaser.GameObjects.TileSprite;
 
   constructor() { super('Game'); }
 
@@ -28,8 +29,8 @@ export class GameScene extends Phaser.Scene {
     const level = LEVELS[0];
     const W = level.map[0].length * T, H = level.map.length * T;
     this.physics.world.setBounds(0, 0, W, H + 200);
-    this.cameras.main.setBounds(0, 0, W, H).setBackgroundColor('#87ceeb');
-    this.add.rectangle(W / 2, H - 60, W, 120, 0xb0d8f0).setScrollFactor(0.3); // Hintergrund
+    this.cameras.main.setBounds(0, 0, W, H).setBackgroundColor('#1a0f08');
+    this.bg = this.add.tileSprite(480, 202.5, 960, 405, 'bg-school').setScrollFactor(0); // Klassenzimmer/Flur
 
     const solids = this.physics.add.staticGroup();
     const crates = this.physics.add.staticGroup();
@@ -45,7 +46,7 @@ export class GameScene extends Phaser.Scene {
         case '=': solids.create(x, y - 13, 'platform'); break;
         case 'B': crates.create(x, y, 'crate'); break;
         case 'c': coins.create(x, y, 'coin'); break;
-        case '^': hazards.create(x, y, 'spikes').setSize(40, 20).setOffset(2, 25); break;
+        case '^': hazards.create(x, y, 'spikes').setSize(42, 15).setOffset(1, 30); break;
         case 'e': {
           const e = enemies.create(x, y, 'plane') as Phaser.Physics.Arcade.Image;
           this.tweens.add({ targets: e, x: x - 180, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.InOut',
@@ -84,8 +85,8 @@ export class GameScene extends Phaser.Scene {
     this.keys = this.input.keyboard!.addKeys('W,A,D,SPACE,ESC') as Record<string, Phaser.Input.Keyboard.Key>;
     this.keys.ESC.on('down', () => this.scene.start('Menu'));
 
-    this.hud = this.add.text(16, 12, '', { fontFamily: FONT, fontSize: '22px', color: '#fff' }).setScrollFactor(0).setStroke('#000', 4);
-    this.add.text(944, 12, `${level.name} · ${this.char.name}`, { fontFamily: FONT, fontSize: '18px', color: '#fff' })
+    this.hud = this.add.text(16, 12, '', { fontFamily: FONT, fontSize: '14px', color: '#fff' }).setScrollFactor(0).setStroke('#000', 4);
+    this.add.text(944, 12, `${level.name} · ${this.char.name}`, { fontFamily: FONT, fontSize: '11px', color: '#fff' })
       .setOrigin(1, 0).setScrollFactor(0).setStroke('#000', 4);
     this.createTouchControls();
     this.startTime = this.time.now;
@@ -96,7 +97,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.sys.game.device.input.touch) return;
     const mk = (x: number, y: number, label: string, k: keyof typeof this.touch) => {
       const b = this.add.image(x, y, 'touch').setScrollFactor(0).setInteractive().setDepth(10);
-      this.add.text(x, y, label, { fontFamily: FONT, fontSize: '34px', color: '#fff' }).setOrigin(0.5).setScrollFactor(0).setDepth(11);
+      this.add.text(x, y, label, { fontFamily: FONT, fontSize: '21px', color: '#fff' }).setOrigin(0.5).setScrollFactor(0).setDepth(11);
       b.on('pointerdown', () => (this.touch[k] = true));
       b.on('pointerup', () => (this.touch[k] = false));
       b.on('pointerout', () => (this.touch[k] = false));
@@ -110,6 +111,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update() {
+    this.bg.tilePositionX = this.cameras.main.scrollX * 0.5;
     if (this.done) return;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     const left = this.cursors.left.isDown || this.keys.A.isDown || this.touch.left;
@@ -155,9 +157,9 @@ export class GameScene extends Phaser.Scene {
     if (newBest) save.bestTimes[id] = time;
     persist();
     this.add.rectangle(480, 270, 520, 300, 0x1b1f3b, 0.92).setScrollFactor(0).setStrokeStyle(4, 0xffcc33);
-    this.add.text(480, 175, '🎓 Geschafft!', { fontFamily: FONT, fontSize: '40px', color: '#ffcc33' }).setOrigin(0.5).setScrollFactor(0);
+    this.add.text(480, 175, '🎓 Geschafft!', { fontFamily: FONT, fontSize: '25px', color: '#ffcc33' }).setOrigin(0.5).setScrollFactor(0);
     this.add.text(480, 250, `Zeit: ${time.toFixed(1)}s${newBest ? '  (Bestzeit!)' : ''}\n+${reward} ALX-Taler`,
-      { fontFamily: FONT, fontSize: '24px', color: '#fff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
+      { fontFamily: FONT, fontSize: '15px', color: '#fff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
     button(this, 360, 350, 'Nochmal', () => this.scene.restart(), 200).setScrollFactor(0);
     button(this, 600, 350, 'Menü', () => this.scene.start('Menu'), 200).setScrollFactor(0);
   }

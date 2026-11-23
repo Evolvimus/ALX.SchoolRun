@@ -1,11 +1,18 @@
 import Phaser from 'phaser';
 import { Character, RARITY_COLOR } from '../data/characters';
 
-export const FONT = 'system-ui, Arial, sans-serif';
+export const FONT = '"Press Start 2P", monospace';
 
-export function button(scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void, w = 260) {
+/** Pixel-Schulhintergrund, abgedunkelt, für Menüs. */
+export function menuBackground(scene: Phaser.Scene) {
+  scene.add.tileSprite(480, 202.5, 960, 405, 'bg-school').setTilePosition(Math.random() * 1920, 0);
+  scene.add.rectangle(480, 472, 960, 135, 0x6b4426);
+  scene.add.rectangle(480, 270, 960, 540, 0x10132b, 0.6);
+}
+
+export function button(scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void, w = 320) {
   const bg = scene.add.rectangle(0, 0, w, 56, 0xffcc33).setStrokeStyle(4, 0x7a4b00);
-  const txt = scene.add.text(0, 0, label, { fontFamily: FONT, fontSize: '24px', color: '#2b1a00', fontStyle: 'bold' }).setOrigin(0.5);
+  const txt = scene.add.text(0, 0, label, { fontFamily: FONT, fontSize: '15px', color: '#2b1a00', fontStyle: 'bold' }).setOrigin(0.5);
   const c = scene.add.container(x, y, [bg, txt]).setSize(w, 56).setInteractive({ useHandCursor: true });
   c.on('pointerover', () => bg.setFillStyle(0xffe080));
   c.on('pointerout', () => bg.setFillStyle(0xffcc33));
@@ -14,7 +21,7 @@ export function button(scene: Phaser.Scene, x: number, y: number, label: string,
 }
 
 export function title(scene: Phaser.Scene, text: string, y = 50) {
-  return scene.add.text(480, y, text, { fontFamily: FONT, fontSize: '40px', color: '#ffcc33', fontStyle: 'bold' })
+  return scene.add.text(480, y, text, { fontFamily: FONT, fontSize: '25px', color: '#ffcc33', fontStyle: 'bold' })
     .setOrigin(0.5).setStroke('#000', 6);
 }
 
@@ -35,7 +42,7 @@ export function card(scene: Phaser.Scene, x: number, y: number, c: Character, un
   if (!unlocked) img.setTintFill(0x111111);
   items.push(img);
   items.push(scene.add.text(0, 55, unlocked ? c.name : '???', {
-    fontFamily: FONT, fontSize: '14px', color: '#fff', align: 'center', wordWrap: { width: 104 },
+    fontFamily: FONT, fontSize: '9px', color: '#fff', align: 'center', wordWrap: { width: 104 },
   }).setOrigin(0.5));
   return scene.add.container(x, y, items).setSize(110, 150).setScale(scale);
 }
