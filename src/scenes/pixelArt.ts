@@ -45,12 +45,26 @@ export function makePixelTextures(scene: Phaser.Scene) {
     H: HAIR[i % HAIR.length], S: 0xf2c49b, E: 0x1a1a2e, M: 0xb5524a, B: c.color, D: darken(c.color), P: 0x2e3a5c, K: 0x222222,
   })));
 
-  // Holzboden-Kachel
-  gen('ground', 15, 15, () => {
-    px(g, 0, 0, 15, 15, 0x6b4426); px(g, 0, 0, 15, 3, 0xc98b4f); px(g, 0, 3, 15, 1, 0x4a2c17);
-    px(g, 0, 7, 15, 1, 0x5a3820); px(g, 0, 11, 15, 1, 0x5a3820); px(g, 6, 4, 1, 3, 0x4a2c17); px(g, 11, 8, 1, 3, 0x4a2c17);
-    px(g, 3, 12, 1, 3, 0x4a2c17); px(g, 2, 1, 4, 1, 0xe0a86a);
+  // Boden: helle Dielenkante oben, darunter dunkler Untergrund
+  const dark = (top: boolean) => {
+    px(g, 0, 0, 15, 15, 0x26262b);
+    for (let i = 0; i < 14; i++) px(g, (i * 7 + (top ? 3 : 0)) % 15, (i * 11 + 4) % 15, 2, 1, i % 2 ? 0x34343b : 0x1b1b1f);
+    if (top) { px(g, 0, 0, 15, 2, 0xd9652b); px(g, 0, 2, 15, 1, 0x8a3a14); px(g, 0, 0, 15, 1, 0xf08a4b); }
+  };
+  gen('ground', 15, 15, () => dark(true));
+  gen('under', 15, 15, () => dark(false));
+  // Turnkasten
+  gen('box', 15, 15, () => {
+    px(g, 0, 0, 15, 15, 0xd9a05b); px(g, 0, 0, 15, 2, 0xd9652b);
+    for (const y of [5, 9, 13]) px(g, 0, y, 15, 1, 0x9a6a33);
+    px(g, 0, 2, 1, 13, 0xb5803f); px(g, 14, 2, 1, 13, 0x9a6a33);
   });
+  // Blaue Turnmatte (federt!)
+  gen('mat', 15, 5, () => { px(g, 0, 0, 15, 5, 0x2d6fd6); px(g, 0, 0, 15, 1, 0x5a97f0); px(g, 0, 4, 15, 1, 0x1b4a99); px(g, 0, 0, 1, 5, 0x1b4a99); px(g, 14, 0, 1, 5, 0x1b4a99); });
+  // Basketball
+  gen('ball', 8, 8, () => sprite(g, ['..oooo..', '.ookooo.', 'oookoooo', 'kkkkkkkk', 'oookoooo', 'oookoooo', '.ookooo.', '..oooo..'], { o: 0xe8742a, k: 0x5a2a0c }));
+  // Leben
+  gen('heart', 7, 6, () => sprite(g, ['.##.##.', '#rw#rr#', '#rrrrr#', '.#rrr#.', '..#r#..', '...#...'], { '#': 0x5a0d0d, r: 0xe23b3b, w: 0xffb3b3 }));
   // Regalbrett / Pult als Plattform
   gen('platform', 15, 6, () => {
     px(g, 0, 0, 15, 6, 0x8f5a2e); px(g, 0, 0, 15, 2, 0xd69a5c); px(g, 0, 5, 15, 1, 0x4a2c17); px(g, 1, 3, 2, 1, 0x6b4426);
@@ -77,6 +91,7 @@ export function makePixelTextures(scene: Phaser.Scene) {
   });
   gen('touch', 30, 30, () => { g.fillStyle(0xffffff, 0.25).fillCircle(45, 45, 45); });
   makeBackground(g);
+  makeGym(g);
   g.destroy();
 }
 
@@ -97,8 +112,8 @@ function makeBackground(g: G) {
   px(g, 95, 45, 40, 1, 0xdfe9df); px(g, 95, 45, 1, 25, 0xdfe9df); px(g, 96, 66, 6, 1, 0xdfe9df); // Koordinatensystem
   for (let i = 0; i < 6; i++) px(g, 98 + i * 6, 64 - i * 3, 2, 2, 0xff9bd5);
   px(g, 18, 92, 136, 3, 0x8f5a2e); px(g, 40, 90, 6, 2, 0xffffff); px(g, 55, 90, 8, 2, 0xffe066); // Kreideablage
-  g.fillStyle(0x333333).fillCircle(172 * P, 24 * P, 9 * P); g.fillStyle(0xffffff).fillCircle(172 * P, 24 * P, 8 * P); // Uhr
-  px(g, 172, 18, 1, 6, 0x222222); px(g, 172, 24, 4, 1, 0x222222);
+  g.fillStyle(0x333333).fillCircle(175 * P, 42 * P, 9 * P); g.fillStyle(0xffffff).fillCircle(175 * P, 42 * P, 8 * P); // Uhr
+  px(g, 175, 36, 1, 6, 0x222222); px(g, 175, 42, 4, 1, 0x222222);
   for (const wx of [196, 256]) {                                         // Fenster
     px(g, wx, 26, 52, 64, 0xf4f4f4); px(g, wx + 3, 29, 46, 58, 0x8fd3ff); px(g, wx + 3, 70, 46, 17, 0x7fc4ef);
     px(g, wx + 25, 29, 2, 58, 0xf4f4f4); px(g, wx + 3, 57, 46, 2, 0xf4f4f4);
@@ -124,6 +139,33 @@ function makeBackground(g: G) {
   px(g, 588, 24, 34, 9, 0x2a7a3a); write(g, 'EXIT', 592, 26, 0xffffff);
   for (const dx of [340, 440]) bench(g, dx);
   g.generateTexture('bg-school', 640 * P, 135 * P);
+}
+
+/** 640x135 Pixel: Turnhalle. */
+function makeGym(g: G) {
+  g.clear();
+  px(g, 0, 0, 640, 135, 0xe6e6ec);
+  px(g, 0, 0, 640, 31, 0x17171a); px(g, 0, 31, 640, 1, 0x8a8a8a);           // Dachträger
+  for (let x = 0; x < 640; x += 16) { px(g, x, 25, 10, 2, 0x2c2c31); px(g, x + 6, 28, 8, 1, 0x2c2c31); }
+  for (const wx of [20, 150, 330, 470]) {                                    // Fensterband
+    px(g, wx, 36, 100, 28, 0x162744); px(g, wx + 2, 38, 96, 24, 0x4d86a8);
+    for (let i = 0; i < 20; i++) { px(g, wx + 30 + i, 60 - i, 6, 1, 0x6fa3bf); px(g, wx + 62 + i, 60 - i, 3, 1, 0x6fa3bf); }
+    px(g, wx + 24, 38, 1, 24, 0x162744); px(g, wx + 75, 38, 1, 24, 0x162744); px(g, wx + 25, 52, 50, 1, 0x162744);
+  }
+  px(g, 0, 82, 640, 53, 0x2f4f9e); px(g, 0, 82, 640, 1, 0x1f3572);          // Prallschutzwand
+  for (let i = 0; i < 420; i++) px(g, (i * 37) % 640, 84 + (i * 53) % 50, 1, 1, i % 3 ? 0x4a6bc0 : 0x8aa3e0);
+  px(g, 266, 60, 50, 17, 0x111111); px(g, 267, 61, 48, 15, 0x2a2a2a);       // Anzeigetafel
+  write(g, '12', 271, 66, 0xff3b3b); write(g, '08', 303, 66, 0xff3b3b); px(g, 290, 67, 1, 1, 0xffcc33); px(g, 290, 70, 1, 1, 0xffcc33);
+  px(g, 556, 54, 34, 24, 0x111111); px(g, 557, 55, 32, 22, 0xffffff);       // Basketballkorb
+  px(g, 566, 62, 14, 10, 0x111111); px(g, 567, 63, 12, 8, 0xffffff);
+  px(g, 568, 73, 10, 1, 0xe8742a); for (let i = 0; i < 4; i++) px(g, 569 + i * 2 + (i % 2), 74, 1, 4, 0xcfcfcf);
+  for (const sx of [112, 440]) {                                            // Sprossenwände
+    px(g, sx, 86, 2, 49, 0xa8703f); px(g, sx + 17, 86, 2, 49, 0xa8703f); px(g, sx + 34, 86, 2, 49, 0xa8703f);
+    for (let y = 89; y < 134; y += 5) px(g, sx, y, 36, 1, 0xc98b4f);
+  }
+  px(g, 60, 92, 22, 43, 0x0e1530); px(g, 61, 93, 20, 42, 0x2a4488); px(g, 77, 112, 2, 1, 0xc0c0c0); // Tür
+  px(g, 52, 100, 3, 3, 0xffffff); px(g, 53, 101, 1, 1, 0x2a4488);
+  g.generateTexture('bg-gym', 640 * P, 135 * P);
 }
 
 function desk(g: G, x: number) {

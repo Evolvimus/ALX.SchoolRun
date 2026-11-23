@@ -12,7 +12,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5).setStroke('#000', 8);
     this.add.text(480, 135, 'Das Jump & Run des Abikomitees', { fontFamily: FONT, fontSize: '14px', color: '#fff' }).setOrigin(0.5);
 
-    button(this, 480, 220, '▶ Spielen', () => this.scene.start('Game'));
+    button(this, 480, 220, '▶ Spielen', () => this.scene.start('Game', { level: Number(new URLSearchParams(location.search).get('level') ?? 0) }));
     button(this, 480, 290, '🃏 Charaktere', () => this.scene.start('Characters'));
     button(this, 480, 360, '🔑 Code einlösen', () => this.scene.start('Redeem'));
     button(this, 480, 430, '🛒 Lehrerzimmer-Shop', () => this.scene.start('Shop'));
