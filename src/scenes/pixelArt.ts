@@ -113,12 +113,13 @@ function drawDetailed(g: G, l: Look, f: string) {
   // --- Kopf (bewusst groß, damit man das Gesicht erkennt): oben kahl, Haare nur seitlich und hinten, nach hinten gebunden
   R(13, 0, 10, 1, skin); R(11, 1, 14, 1, skin); R(10, 2, 16, 1, skin); R(9, 3, 18, 3, skin); R(8, 6, 20, 15, skin);
   R(9, 21, 18, 1, skin); R(10, 22, 16, 1, skin); R(12, 23, 12, 1, skin); R(14, 24, 8, 1, skin);
-  R(15, 1, 5, 1, darken(skin, 1.06)); R(13, 2, 3, 1, darken(skin, 1.06)); // Glanz auf der Stirn
   R(7, 13, 1, 4, skin); R(28, 13, 1, 4, skin); R(7, 16, 1, 1, skinD); R(28, 16, 1, 1, skinD); // Ohren
-  // Haarkranz: dünn an den Schläfen, dichter über den Ohren
-  R(10, 1, 1, 1, hairD); R(25, 1, 1, 1, hairD); R(9, 2, 1, 1, hair); R(26, 2, 1, 1, hair);
-  R(8, 3, 1, 3, hair); R(27, 3, 1, 3, hair); R(7, 5, 2, 8, hair); R(27, 5, 2, 8, hair);
-  R(9, 6, 1, 4, hairD); R(26, 6, 1, 4, hairD);
+  // Haare: straff nach hinten gekämmt, hoher Haaransatz mit leichten Geheimratsecken
+  R(13, 0, 10, 1, hair); R(11, 1, 14, 1, hair); R(10, 2, 16, 1, hair); R(9, 3, 3, 1, hair); R(24, 3, 3, 1, hair); R(14, 3, 8, 1, hair);
+  R(16, 4, 4, 1, hairD); R(12, 3, 2, 1, hairD); R(22, 3, 2, 1, hairD);                 // Haaransatz
+  for (const x of [13, 16, 19, 22]) R(x, 0, 1, 3, hairD);                             // gekämmte Strähnen
+  R(8, 3, 1, 3, hair); R(27, 3, 1, 3, hair); R(7, 5, 2, 8, hair); R(27, 5, 2, 8, hair); // Seiten
+  R(9, 4, 1, 6, hairD); R(26, 4, 1, 6, hairD);
   // Augenbrauen
   R(11, 8, 5, 1, darken(skin, 0.7)); R(20, 8, 5, 1, darken(skin, 0.7));
   // Brille: dünnes Gestell mit abgerundeten Ecken, durchsichtige Gläser, Augen dahinter
