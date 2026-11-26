@@ -110,15 +110,17 @@ function drawDetailed(g: G, l: Look, f: string) {
   // --- Hals
   R(14, 24, 8, 3, skinD);
 
-  // --- Kopf (bewusst groß, damit man das Gesicht erkennt): hohe Stirn, zurückgebundene Haare
-  R(12, 2, 12, 1, skin); R(10, 3, 16, 1, skin); R(9, 4, 18, 2, skin); R(8, 6, 20, 15, skin);
+  // --- Kopf (bewusst groß, damit man das Gesicht erkennt): oben kahl, Haare nur seitlich und hinten, nach hinten gebunden
+  R(13, 0, 10, 1, skin); R(11, 1, 14, 1, skin); R(10, 2, 16, 1, skin); R(9, 3, 18, 3, skin); R(8, 6, 20, 15, skin);
   R(9, 21, 18, 1, skin); R(10, 22, 16, 1, skin); R(12, 23, 12, 1, skin); R(14, 24, 8, 1, skin);
+  R(15, 1, 5, 1, darken(skin, 1.06)); R(13, 2, 3, 1, darken(skin, 1.06)); // Glanz auf der Stirn
   R(7, 13, 1, 4, skin); R(28, 13, 1, 4, skin); R(7, 16, 1, 1, skinD); R(28, 16, 1, 1, skinD); // Ohren
-  R(12, 0, 12, 1, hair); R(10, 1, 16, 1, hair); R(9, 2, 18, 1, hair); R(8, 3, 4, 1, hair); R(24, 3, 4, 1, hair);
-  R(12, 3, 12, 1, hairD); R(15, 4, 6, 1, hairD); // Haaransatz, leichte Geheimratsecken
-  R(7, 4, 2, 9, hair); R(27, 4, 2, 8, hair); R(8, 4, 2, 3, hair); R(26, 4, 2, 3, hair); R(8, 4, 1, 9, hairD); R(27, 4, 1, 8, hairD);
+  // Haarkranz: dünn an den Schläfen, dichter über den Ohren
+  R(10, 1, 1, 1, hairD); R(25, 1, 1, 1, hairD); R(9, 2, 1, 1, hair); R(26, 2, 1, 1, hair);
+  R(8, 3, 1, 3, hair); R(27, 3, 1, 3, hair); R(7, 5, 2, 8, hair); R(27, 5, 2, 8, hair);
+  R(9, 6, 1, 4, hairD); R(26, 6, 1, 4, hairD);
   // Augenbrauen
-  R(10, 8, 6, 1, hairD); R(20, 8, 6, 1, hairD);
+  R(11, 8, 5, 1, darken(skin, 0.7)); R(20, 8, 5, 1, darken(skin, 0.7));
   // Brille: dünnes Gestell mit abgerundeten Ecken, durchsichtige Gläser, Augen dahinter
   const lens = l.lens ?? 0xf8dcc4;
   for (const x of [9, 19]) {
@@ -131,12 +133,11 @@ function drawDetailed(g: G, l: Look, f: string) {
   R(17, 12, 2, 1, l.glasses); R(8, 12, 1, 1, l.glasses); R(27, 12, 1, 1, l.glasses); // Steg und Bügel
   // Nase
   R(18, 14, 1, 4, skinD); R(16, 18, 4, 1, skinD);
-  // Bart: Stoppeln an Wangen und Kinn, Schnurr- und Kinnbart
-  R(8, 17, 3, 4, l.stubble); R(25, 17, 3, 4, l.stubble); R(9, 21, 18, 1, l.stubble); R(10, 22, 16, 1, l.stubble); R(12, 23, 12, 1, l.stubble); R(14, 24, 8, 1, l.stubble);
+  // Wangen leicht gerötet, Lächeln, kleiner Kinnbart
+  R(9, 17, 3, 2, darken(skin, 0.93)); R(24, 17, 3, 2, darken(skin, 0.93));
+  R(13, 19, 1, 1, 0x8a4038); R(22, 19, 1, 1, 0x8a4038); R(14, 20, 8, 1, 0x8a4038); R(15, 20, 6, 1, 0xf4ece4); R(15, 21, 6, 1, 0xb5605a);
   const beard = darken(l.stubble, 0.72);
-  R(13, 19, 10, 1, beard); R(13, 20, 1, 3, beard); R(22, 20, 1, 3, beard);
-  R(15, 20, 6, 1, 0x8a4038); R(15, 21, 6, 1, skin); // Mund
-  R(15, 22, 6, 2, beard); R(16, 24, 4, 1, beard);
+  R(16, 22, 4, 1, l.stubble); R(15, 23, 6, 1, beard); R(16, 24, 4, 1, beard); R(17, 25, 2, 1, beard);
 }
 
 export function makePixelTextures(scene: Phaser.Scene) {

@@ -58,8 +58,8 @@ export const abilityText = (c: Character) => [c.ability, ...(c.bonus ?? [])].map
 
 // ---------------------------------------------------------------- Herr Hammer
 const HAMMER_LOOK: Look = {
-  hair: 0x4a3220, skin: 0xf0c4a0, shirt: 0x2f5f63, vest: 0x5a5a5e, tie: 0x6fa3a0,
-  belt: 0x7a4a24, pants: 0x34476e, shoes: 0x5a3a22, glasses: 0x2e2a2a, stubble: 0xc99a78, ponytail: true,
+  hair: 0x4a3a30, skin: 0xf0c4a0, shirt: 0x2f5f63, vest: 0x5a5a5e, tie: 0x6fa3a0,
+  belt: 0x7a4a24, pants: 0x34476e, shoes: 0x5a3a22, glasses: 0x5e2f2a, stubble: 0xb09a88, ponytail: true,
 };
 const HAMMER_QUOTES = [
   'Ethik ist wie Religion,\nnur ohne Weihnachten.',
