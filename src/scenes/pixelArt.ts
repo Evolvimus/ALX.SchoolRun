@@ -122,30 +122,27 @@ function drawDetailed(g: G, l: Look, f: string) {
   // --- Kopf (bewusst groß, damit man das Gesicht erkennt): oben kahl, Haare nur seitlich und hinten, nach hinten gebunden
   R(13, 0, 10, 1, skin); R(11, 1, 14, 1, skin); R(10, 2, 16, 1, skin); R(9, 3, 18, 3, skin); R(8, 6, 20, 15, skin);
   R(9, 21, 18, 1, skin); R(10, 22, 16, 1, skin); R(12, 23, 12, 1, skin); R(14, 24, 8, 1, skin);
-  R(6, 13, 2, 4, skin); R(28, 13, 2, 4, skin); R(7, 14, 1, 2, skinD); R(28, 14, 1, 2, skinD); R(7, 17, 1, 1, skin); R(28, 17, 1, 1, skin); // Ohren
+  R(7, 13, 1, 4, skin); R(28, 13, 1, 4, skin); R(7, 16, 1, 1, skinD); R(28, 16, 1, 1, skinD); // Ohren
   // Haare: straff nach hinten gekämmt, hoher Haaransatz mit leichten Geheimratsecken
-  R(13, 0, 10, 1, hair); R(11, 1, 14, 1, hair); R(10, 2, 16, 1, hair); R(9, 3, 2, 1, hair); R(25, 3, 2, 1, hair);
-  R(15, 3, 6, 1, hairD); R(11, 3, 1, 1, hairD); R(24, 3, 1, 1, hairD);                 // Haaransatz
+  R(13, 0, 10, 1, hair); R(11, 1, 14, 1, hair); R(10, 2, 16, 1, hair); R(9, 3, 3, 1, hair); R(24, 3, 3, 1, hair); R(14, 3, 8, 1, hair);
+  R(16, 4, 4, 1, hairD); R(12, 3, 2, 1, hairD); R(22, 3, 2, 1, hairD);                 // Haaransatz
   for (const x of [13, 16, 19, 22]) R(x, 0, 1, 3, hairD);                             // gekämmte Strähnen
   R(8, 3, 1, 3, hair); R(27, 3, 1, 3, hair); R(7, 5, 2, 8, hair); R(27, 5, 2, 8, hair); // Seiten
   R(9, 4, 1, 6, hairD); R(26, 4, 1, 6, hairD);
-  const grey = 0x8a8078; R(7, 9, 2, 4, grey); R(27, 9, 2, 4, grey); R(8, 7, 1, 2, grey); R(27, 7, 1, 2, grey); // graue Schläfen
   // Augenbrauen
   R(11, 8, 5, 1, darken(skin, 0.7)); R(20, 8, 5, 1, darken(skin, 0.7));
-  // Brille: dünnes Gestell, ovale durchsichtige Gläser, Augen dahinter
+  // Brille: dünnes Gestell mit abgerundeten Ecken, durchsichtige Gläser, Augen dahinter
   const lens = l.lens ?? 0xf8dcc4;
   for (const x of [9, 19]) {
-    R(x + 1, 11, 6, 4, lens); R(x + 2, 10, 4, 6, lens);            // Glas
-    R(x + 2, 10, 4, 1, l.glasses); R(x + 2, 15, 4, 1, l.glasses);   // oben, unten
-    R(x, 12, 1, 2, l.glasses); R(x + 7, 12, 1, 2, l.glasses);       // links, rechts
-    R(x + 1, 11, 1, 1, l.glasses); R(x + 6, 11, 1, 1, l.glasses); R(x + 1, 14, 1, 1, l.glasses); R(x + 6, 14, 1, 1, l.glasses); // runde Ecken
-    R(x + 2, 12, 4, 2, 0xffffff); R(x + 3, 12, 2, 2, 0x3a4a5a); R(x + 3, 12, 1, 1, 0x1a1a2e); // Auge
-    R(x + 2, 11, 4, 1, darken(skin, 0.9));                          // Lid
+    R(x + 1, 11, 6, 4, lens);                                   // Glas
+    R(x + 1, 10, 6, 1, l.glasses); R(x + 1, 15, 6, 1, l.glasses); // oben, unten
+    R(x, 11, 1, 4, l.glasses); R(x + 7, 11, 1, 4, l.glasses);     // links, rechts
+    R(x + 2, 12, 4, 2, 0xffffff); R(x + 3, 12, 2, 2, 0x1a1a2e);   // Auge
+    R(x + 5, 11, 1, 1, 0xffffff);                                // Lichtreflex
   }
-  R(17, 12, 2, 1, l.glasses); R(7, 12, 2, 1, l.glasses); R(27, 12, 2, 1, l.glasses); // Steg und Bügel
-  // Nase: kräftig, mit Nasenflügeln, dazu Lachfalten
-  R(17, 13, 2, 5, darken(skin, 1.04)); R(19, 14, 1, 4, skinD); R(16, 17, 1, 2, skinD); R(20, 17, 1, 1, skinD); R(17, 18, 3, 1, skinD);
-  R(13, 17, 1, 2, skinD); R(22, 17, 1, 2, skinD);
+  R(17, 12, 2, 1, l.glasses); R(8, 12, 1, 1, l.glasses); R(27, 12, 1, 1, l.glasses); // Steg und Bügel
+  // Nase
+  R(18, 14, 1, 4, skinD); R(16, 18, 4, 1, skinD);
   // Wangen leicht gerötet, Lächeln, kleiner Kinnbart
   R(9, 17, 3, 2, darken(skin, 0.93)); R(24, 17, 3, 2, darken(skin, 0.93));
   R(13, 19, 1, 1, 0x8a4038); R(22, 19, 1, 1, 0x8a4038); R(14, 20, 8, 1, 0x8a4038); R(15, 20, 6, 1, 0xf4ece4); R(15, 21, 6, 1, 0xb5605a);
