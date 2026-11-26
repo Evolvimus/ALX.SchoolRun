@@ -120,8 +120,14 @@ function drawDetailed(g: G, l: Look, f: string) {
   R(14, 24, 8, 3, skinD);
 
   // --- Kopf (bewusst groß, damit man das Gesicht erkennt): oben kahl, Haare nur seitlich und hinten, nach hinten gebunden
-  R(13, 0, 10, 1, skin); R(11, 1, 14, 1, skin); R(10, 2, 16, 1, skin); R(9, 3, 18, 3, skin); R(8, 6, 20, 15, skin);
-  R(9, 21, 18, 1, skin); R(10, 22, 16, 1, skin); R(12, 23, 12, 1, skin); R(14, 24, 8, 1, skin);
+  const face = l.face ?? 0, oval = face > 0;
+  R(13, 0, 10, 1, skin); R(11, 1, 14, 1, skin); R(10, 2, 16, 1, skin); R(9, 3, 18, 3, skin);
+  if (oval) { // längliches Gesicht, das zum Kinn hin schmaler wird
+    R(8, 6, 20, 10, skin); R(9, 16, 18, 2, skin); R(10, 18, 16, 2, skin); R(11, 20, 14, 1, skin);
+    R(12, 21, 12, 1, skin); R(13, 22, 10, 1, skin); R(14, 23, 8, 1, skin); R(15, 24, 6, 1, skin);
+  } else {
+    R(8, 6, 20, 15, skin); R(9, 21, 18, 1, skin); R(10, 22, 16, 1, skin); R(12, 23, 12, 1, skin); R(14, 24, 8, 1, skin);
+  }
   R(7, 13, 1, 4, skin); R(28, 13, 1, 4, skin); R(7, 16, 1, 1, skinD); R(28, 16, 1, 1, skinD); // Ohren
   // Haare: straff nach hinten gekämmt, hoher Haaransatz mit leichten Geheimratsecken
   R(13, 0, 10, 1, hair); R(11, 1, 14, 1, hair); R(10, 2, 16, 1, hair); R(9, 3, 3, 1, hair); R(24, 3, 3, 1, hair); R(14, 3, 8, 1, hair);
@@ -137,17 +143,30 @@ function drawDetailed(g: G, l: Look, f: string) {
     R(x + 1, 11, 6, 4, lens);                                   // Glas
     R(x + 1, 10, 6, 1, l.glasses); R(x + 1, 15, 6, 1, l.glasses); // oben, unten
     R(x, 11, 1, 4, l.glasses); R(x + 7, 11, 1, 4, l.glasses);     // links, rechts
-    R(x + 2, 12, 4, 2, 0xffffff); R(x + 3, 12, 2, 2, 0x1a1a2e);   // Auge
+    if (face === 3) { R(x + 3, 12, 2, 1, 0x1a1a2e); R(x + 2, 13, 1, 1, 0x1a1a2e); R(x + 5, 13, 1, 1, 0x1a1a2e); } // lachende Augen
+    else if (oval) { R(x + 3, 12, 2, 2, 0x1a1a2e); R(x + 3, 12, 1, 1, 0x5a6a7a); }                               // kleine Augen
+    else { R(x + 2, 12, 4, 2, 0xffffff); R(x + 3, 12, 2, 2, 0x1a1a2e); }                                         // große Augen
     R(x + 5, 11, 1, 1, 0xffffff);                                // Lichtreflex
   }
   R(17, 12, 2, 1, l.glasses); R(8, 12, 1, 1, l.glasses); R(27, 12, 1, 1, l.glasses); // Steg und Bügel
-  // Nase
-  R(18, 14, 1, 4, skinD); R(16, 18, 4, 1, skinD);
-  // Wangen leicht gerötet, Lächeln, kleiner Kinnbart
-  R(9, 17, 3, 2, darken(skin, 0.93)); R(24, 17, 3, 2, darken(skin, 0.93));
-  R(13, 19, 1, 1, 0x8a4038); R(22, 19, 1, 1, 0x8a4038); R(14, 20, 8, 1, 0x8a4038); R(15, 20, 6, 1, 0xf4ece4); R(15, 21, 6, 1, 0xb5605a);
-  const beard = darken(l.stubble, 0.72);
-  R(16, 22, 4, 1, l.stubble); R(15, 23, 6, 1, beard); R(16, 24, 4, 1, beard); R(17, 25, 2, 1, beard);
+  const beard = darken(l.stubble, 0.72), lip = 0x8a4038;
+  if (oval) {
+    // Längere Nase
+    R(18, 13, 1, 5, skinD); R(17, 18, 3, 1, skinD); R(16, 17, 1, 1, skinD);
+    R(10, 16, 2, 2, darken(skin, 0.93)); R(24, 16, 2, 2, darken(skin, 0.93)); // Wangen
+    if (face === 2) { R(13, 19, 1, 3, l.stubble); R(22, 19, 1, 3, l.stubble); R(13, 21, 10, 1, l.stubble); R(14, 22, 8, 1, l.stubble); } // Bartschatten
+    R(14, 19, 1, 1, lip); R(21, 19, 1, 1, lip);
+    if (face === 1) R(15, 20, 6, 1, lip);                                   // geschlossenes Lächeln
+    else { R(15, 20, 6, 1, 0xf4ece4); R(15, 21, 6, 1, lip); }               // Lächeln mit Zähnen
+    R(16, 22, 4, 1, l.stubble); R(16, 23, 4, 2, beard); R(17, 25, 2, 1, beard);
+  } else {
+    // Nase
+    R(18, 14, 1, 4, skinD); R(16, 18, 4, 1, skinD);
+    // Wangen leicht gerötet, Lächeln, kleiner Kinnbart
+    R(9, 17, 3, 2, darken(skin, 0.93)); R(24, 17, 3, 2, darken(skin, 0.93));
+    R(13, 19, 1, 1, lip); R(22, 19, 1, 1, lip); R(14, 20, 8, 1, lip); R(15, 20, 6, 1, 0xf4ece4); R(15, 21, 6, 1, 0xb5605a);
+    R(16, 22, 4, 1, l.stubble); R(15, 23, 6, 1, beard); R(16, 24, 4, 1, beard); R(17, 25, 2, 1, beard);
+  }
 }
 
 export function makePixelTextures(scene: Phaser.Scene) {

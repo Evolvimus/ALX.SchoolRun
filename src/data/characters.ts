@@ -14,6 +14,8 @@ export interface Look {
   belt: number; pants: number; shoes: number; glasses: number; stubble: number;
   /** Farbe der Brillengläser (Standard: durchsichtig). */
   lens?: number;
+  /** Gesichtsvariante: 0 = breit mit großen Augen, 1–3 = länglich (1 ruhig, 2 mit Bartschatten, 3 lachend). */
+  face?: number;
   /** Zopf am Hinterkopf. */
   ponytail?: boolean;
 }
