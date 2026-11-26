@@ -114,6 +114,34 @@ Vorlagen für **Android, iOS, Web, Windows, macOS** stehen in `export_presets.cf
 - **iOS (App Store)**: auf einem Mac mit Xcode, Apple-Team-ID im iOS-Preset eintragen.
 - **Web**: ergibt `build/web/index.html` für den PC-Browser.
 
+## iOS und TestFlight (iPhone + iPad)
+Das geht nur auf einem **Mac mit Xcode**. Die Exportvorlage „iOS“ ist für iPhone und iPad eingestellt (ab iOS 14), das App-Icon liegt in `icons/ios_1024.png`.
+
+**Einmalig vorbereiten**
+1. **Apple Developer Program** (99 €/Jahr) für das Konto, unter dem die App erscheinen soll. Die **Team ID** steht unter developer.apple.com → Account → Membership.
+2. **Xcode** aus dem Mac App Store installieren, einmal öffnen, unter *Settings → Accounts* mit dieser Apple-ID anmelden.
+3. **Godot 4.3** installieren und im Editor unter *Editor → Export-Vorlagen verwalten* die Vorlagen für 4.3 herunterladen.
+4. In **App Store Connect** (appstoreconnect.apple.com) unter *Apps → +* eine neue App anlegen: Plattform iOS, Name „ALX SchoolRun“, Bundle-ID `de.alx.schoolrun`.
+   - Ist die Bundle-ID schon vergeben, eine eigene wählen (z. B. `de.<schule>.schoolrun`) und in `export_presets.cfg` beim iOS-Preset bei `application/bundle_identifier` eintragen.
+   - Die Bundle-ID muss vorher unter developer.apple.com → *Identifiers* angelegt sein (Xcode macht das beim ersten Signieren meist automatisch).
+5. Optional für automatisches Hochladen: in App Store Connect unter *Benutzer und Zugriff → Integrationen → App Store Connect API* einen Schlüssel (Rolle „App-Manager“) anlegen. Die Datei `AuthKey_<KEY_ID>.p8` nach `~/.appstoreconnect/private_keys/` legen und Key-ID und Issuer-ID notieren.
+
+**Bauen und hochladen** (im Ordner `godot/`)
+```bash
+TEAM_ID=ABCDE12345 ./tools/testflight.sh
+# oder gleich mit Upload:
+TEAM_ID=ABCDE12345 ASC_KEY_ID=XYZ123 ASC_ISSUER_ID=1234-abcd-... ./tools/testflight.sh
+```
+Ohne API-Schlüssel die entstandene `build/ios/ALX-SchoolRun.ipa` mit der App **Transporter** hochladen.
+
+**In TestFlight verteilen**
+- Nach 10–30 Minuten erscheint der Build in App Store Connect unter **TestFlight**.
+- **Interne Tester** (bis 100 Personen mit Zugang zum Developer-Team) können sofort testen.
+- **Externe Tester** (bis 10.000, z. B. per öffentlichem Link für die Schule) brauchen eine kurze Beta-Prüfung durch Apple (meist 1 Tag) sowie eine Beschreibung und eine Kontakt-E-Mail.
+- Die Tester installieren die App **TestFlight** aus dem App Store und nehmen die Einladung an. Die App läuft auf iPhone und iPad.
+
+Die Frage nach Verschlüsselung (Exportbestimmungen) ist mit `ITSAppUsesNonExemptEncryption = false` schon beantwortet.
+
 ## Testen
 Startoptionen (nach `--`), z. B. `godot --path godot -- --level=2 --char=lehrer01 --unlock-all`:
 
