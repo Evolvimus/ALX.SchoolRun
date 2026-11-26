@@ -87,6 +87,10 @@ class Enemy extends RefCounted:
 	func on_die(_dir: int) -> void:
 		pass
 
+	## Ohne Belohnung verschwinden (z. B. Arena-Gegner nach einem Fehlversuch)
+	func remove() -> void:
+		alive = false
+
 	func flash(node: CanvasItem) -> void:
 		node.modulate = Color(4, 4, 4)
 		game.get_tree().create_timer(0.09).timeout.connect(func(): if is_instance_valid(node): node.modulate = Color.WHITE)
@@ -153,6 +157,10 @@ class DustMouse extends Enemy:
 		sprite.texture = Art.tex("mouse-1" if int(now / (70 if state == "dash" else 160)) % 2 else "mouse-0")
 		if state == "dash" and body.is_on_floor() and int(now / 90) % 2:
 			game.fx.dust(Vector2(body.position.x - dir * 12, bottom), 1)
+
+	func remove() -> void:
+		alive = false
+		body.queue_free()
 
 	func on_die(dir_: int) -> void:
 		body.collision_layer = 0
@@ -640,4 +648,212 @@ class Target extends Enemy:
 		tw.tween_property(img, "rotation", (dir_ if dir_ else 1) * PI / 2, 0.36).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 		tw.tween_interval(0.5)
 		tw.tween_property(img, "modulate:a", 0.0, 0.4)
+		tw.tween_callback(img.queue_free)
+
+
+# ====================================================================== Boss: Der Kopierer
+
+## Kündigt jeden Angriff an (Display blinkt rot). Ablauf in Runden:
+##   Blätter werfen → Papierwelle über den Boden → überhitzen → Deckel auf (verwundbar!) → von vorn.
+## Ab halber Energie: schneller, mehr Blätter, doppelte Welle.
+## Schaden nur bei offenem Deckel: Lineal 1, Hammer 2, Draufspringen 2.
+class Copier extends Enemy:
+	const MAX_HP := 10
+	var img: Sprite2D
+	var base: Vector2
+	var state := "sleep"
+	var until := 0.0
+	var step := 0
+	var shots := 0
+	var sheets: Array[Dictionary] = []
+	var waves: Array[Dictionary] = []
+	var awake := false
+	var hit_until := 0.0
+
+	func _init(g: Game, ground_pos: Vector2) -> void:
+		super(g)
+		kind = "copier"
+		hp = MAX_HP
+		reward = 40
+		hittable = false
+		base = ground_pos
+		img = Enemies.make_standing(g, "copier", ground_pos, Enemies.S, 7)
+
+	func phase2() -> bool:
+		return hp <= MAX_HP / 2
+
+	func hitbox() -> Rect2:
+		return Rect2(base.x - 54, base.y - 84, 108, 84)
+
+	## Wird von der Arena aufgerufen, wenn sich die Gitter schließen
+	func wake(now: float) -> void:
+		if awake:
+			return
+		awake = true
+		state = "idle"
+		until = now + 1200
+
+	## Nach einem Fehlversuch: alles zurück auf Anfang
+	func reset() -> void:
+		awake = false
+		state = "sleep"
+		hp = MAX_HP
+		step = 0
+		_set_open(false)
+		img.texture = Art.tex("copier")
+		for sh in sheets:
+			(sh["img"] as Node).queue_free()
+		for w in waves:
+			(w["img"] as Node).queue_free()
+		sheets.clear()
+		waves.clear()
+
+	func _set_open(open: bool) -> void:
+		hittable = open
+		stompable = open
+		harmful = not open
+		img.texture = Art.tex("copier-open" if open else "copier")
+
+	func tick(now: float, dt: float) -> void:
+		_tick_projectiles(dt)
+		if not awake or not alive:
+			return
+		var speed := 0.7 if phase2() else 1.0
+		match state:
+			"idle":
+				if now > until:
+					state = ["aim_sheets", "aim_wave", "overheat"][step % 3]
+					step += 1
+					until = now + 650 * speed
+			"aim_sheets", "aim_wave":
+				img.texture = Art.tex("copier-hot" if int(now / 90) % 2 else "copier")
+				if now > until:
+					img.texture = Art.tex("copier")
+					if state == "aim_sheets":
+						state = "sheets"
+						shots = 5 if phase2() else 3
+						until = now
+					else:
+						_spawn_wave()
+						if phase2():
+							state = "wave2"
+							until = now + 700
+						else:
+							state = "idle"
+							until = now + 1100 * speed
+			"sheets":
+				if now > until:
+					_throw_sheet()
+					shots -= 1
+					until = now + 260 * speed
+					if shots <= 0:
+						state = "idle"
+						until = now + 900 * speed
+			"wave2":
+				if now > until:
+					_spawn_wave()
+					state = "idle"
+					until = now + 1100 * speed
+			"overheat":
+				img.position.x = base.x + sin(now / 15.0) * 2.5
+				img.texture = Art.tex("copier-hot")
+				if int(now / 120) % 2:
+					game.fx.dust(base + Vector2(randf_range(-40, 40), -90), 1)
+				if now > until + 500:
+					img.position.x = base.x
+					state = "open"
+					_set_open(true)
+					Sfx.play("land")
+					until = now + 2200 * (0.85 if phase2() else 1.0)
+			"open":
+				if now > until:
+					_set_open(false)
+					state = "idle"
+					until = now + 600
+
+	func _throw_sheet() -> void:
+		var p := game.player.position
+		var from := base + Vector2(0, -60)
+		var dx := clampf(p.x - from.x, -420, 420) + randf_range(-60, 60)
+		var t := 0.95
+		var v := Vector2(dx / t, -520)
+		var sh := Enemies.make_sprite(game, "sheet", from, 3.0, 9)
+		sheets.append({ "pos": from, "vel": v, "img": sh })
+		Sfx.play("swing")
+
+	func _spawn_wave() -> void:
+		for d in [-1, 1]:
+			var w := Enemies.make_standing(game, "paperwave", base + Vector2(d * 60, 0), 3.0, 9)
+			w.flip_h = d < 0
+			waves.append({ "x": base.x + d * 60, "dir": d, "img": w })
+		Sfx.play("blow")
+		game.shake(160, 0.006)
+
+	func _tick_projectiles(dt: float) -> void:
+		var pr := game.player.rect()
+		for sh in sheets:
+			sh["vel"].y += 900 * dt
+			sh["pos"] += sh["vel"] * dt
+			var img_: Sprite2D = sh["img"]
+			img_.position = sh["pos"]
+			img_.rotation += 6.0 * dt
+			if Rect2(sh["pos"] - Vector2(10, 7), Vector2(20, 14)).intersects(pr):
+				game.damage_player(sh["pos"].x)
+				sh["dead"] = true
+			elif sh["pos"].y > base.y + 10:
+				game.fx.burst(sh["pos"], Color.WHITE, 3)
+				sh["dead"] = true
+		for w in waves:
+			w["x"] += w["dir"] * (380.0 if phase2() else 330.0) * dt
+			var img_: Sprite2D = w["img"]
+			img_.position.x = w["x"]
+			if Rect2(w["x"] - 20, base.y - 24, 40, 24).intersects(pr):
+				game.damage_player(w["x"] - w["dir"] * 30)
+			if absf(w["x"] - base.x) > 700:
+				w["dead"] = true
+		for list in [sheets, waves]:
+			for item in list.filter(func(i): return i.get("dead", false)):
+				(item["img"] as Node).queue_free()
+				list.erase(item)
+
+	## Wie lange der Deckel noch offen ist (ms); 0 wenn zu
+	func open_left() -> float:
+		return maxf(0.0, until - game.now) if state == "open" else 0.0
+
+	func hit(dir: int, damage := 1) -> void:
+		if not alive or state != "open" or game.now < hit_until:
+			return
+		hit_until = game.now + 300  # kurze Schutzzeit: pro offenem Deckel nur ein paar Treffer
+		hp -= damage
+		game.fx.burst(base + Vector2(0, -70), Color("#fff0a0"), 12)
+		flash(img)
+		Sfx.play("hit")
+		if hp <= 0:
+			die(dir)
+		elif hp <= MAX_HP / 2 and hp + damage > MAX_HP / 2:
+			game.fx.text(base + Vector2(0, -120), "Papierstau!", Color("#ff8a8a"))
+			_set_open(false)
+			state = "idle"
+			until = game.now + 500
+
+	func stomp() -> void:
+		hit(0, 2)
+
+	func on_die(_dir: int) -> void:
+		hittable = false
+		harmful = false
+		for list in [sheets, waves]:
+			for item in list:
+				(item["img"] as Node).queue_free()
+			list.clear()
+		for i in 6:
+			game.fx.burst(base + Vector2(randf_range(-50, 50), randf_range(-80, -10)), Color.WHITE, 10)
+		game.fx.leaves(base + Vector2(0, -60), 20)
+		game.shake(500, 0.015)
+		Sfx.play("win")
+		var tw := img.create_tween()
+		for i in 6:
+			tw.tween_property(img, "modulate:a", 0.2, 0.08)
+			tw.tween_property(img, "modulate:a", 1.0, 0.08)
+		tw.tween_property(img, "scale", Vector2(3.6, 0.3), 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		tw.tween_callback(img.queue_free)

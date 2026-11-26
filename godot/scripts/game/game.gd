@@ -30,6 +30,9 @@ var movers: Array[Dictionary] = []
 var collected := 0
 var checkpoint_index := -1
 var attempts := 0
+## Kampfarenen: { left, right (Gitter-Dicts), rect, floor, spawners (Array[Vector2]), boss, state, wave, spawned }
+var arenas: Array[Dictionary] = []
+var boss: Enemies.Copier
 
 var level: Dictionary
 var level_index := 0
@@ -80,6 +83,8 @@ var _hud_leaves: Label
 var _hud_hefte: Label
 var _hud_time: Label
 var _hud_attempts: Label
+var _boss_bar: Control
+var _boss_fill: Panel
 
 
 # ====================================================================== Aufbau
@@ -238,6 +243,8 @@ func _static_box(pos: Vector2, size: Vector2, group: String) -> StaticBody2D:
 
 
 func _build_objects() -> void:
+	var gates: Array = []
+	var spawners: Array = []
 	var holes: Array = []
 	var burners := 0
 	var owned: Array = Save.data["hefte"].get(level["id"], [])
@@ -322,6 +329,17 @@ func _build_objects() -> void:
 					burners += 1
 				"C": enemies.append(Enemies.Caterpillar.new(self, Vector2(x, floor_y)))
 				"T": enemies.append(Enemies.Target.new(self, Vector2(x, floor_y)))
+				"A":
+					var body := _static_box(Vector2(x, floor_y - 90), Vector2(T, 180), "")
+					(body.get_child(0) as CollisionShape2D).disabled = true
+					gates.append({ "body": body, "shape": body.get_child(0), "x": x, "floor": floor_y,
+						"img": Enemies.make_standing(self, "gate-open", Vector2(x, floor_y - 168), 3.0, 5) })
+				"Y":
+					Enemies.make_sprite(self, "spawner", Vector2(x, ry * T + 9), 3.0, 5)
+					spawners.append(Vector2(x, ry * T + 30))
+				"X":
+					boss = Enemies.Copier.new(self, Vector2(x, floor_y))
+					enemies.append(boss)
 	# Benachbarte Löcher gehören zu einem Bücherwurm
 	holes.sort_custom(func(a, b): return a["col"] < b["col"])
 	var group: Array = []
@@ -334,6 +352,21 @@ func _build_objects() -> void:
 		enemies.append(Enemies.Bookworm.new(self, group.map(func(g): return g["pos"])))
 	_checkpoints.sort_custom(func(a, b): return a["x"] < b["x"])
 	_doors.sort_custom(func(a, b): return a["x"] < b["x"])
+	# Arenen: je zwei Gitter auf gleicher Höhe (von links nach rechts) bilden eine Arena
+	gates.sort_custom(func(a, b): return a["floor"] < b["floor"] if a["floor"] != b["floor"] else a["x"] < b["x"])
+	var gi := 0
+	while gi + 1 < gates.size():
+		var l: Dictionary = gates[gi]
+		var r: Dictionary = gates[gi + 1]
+		if l["floor"] != r["floor"]:
+			gi += 1
+			continue
+		var rect := Rect2(l["x"] + T / 2, l["floor"] - 9 * T, r["x"] - l["x"] - T, 9 * T)
+		var inside := spawners.filter(func(sp): return rect.has_point(sp))
+		var arena_boss: Enemies.Copier = boss if boss and rect.has_point(boss.base - Vector2(0, 10)) else null
+		arenas.append({ "left": l, "right": r, "rect": rect, "floor": l["floor"], "spawners": inside, "boss": arena_boss,
+			"state": "idle", "wave": 0, "spawned": [], "next_wave": 0.0 })
+		gi += 2
 	# Jede Druckplatte öffnet die nächste Tür rechts von ihr (auf ähnlicher Höhe)
 	for p in _plates:
 		for i in _doors.size():
@@ -423,6 +456,13 @@ func _build_hud(c: Dictionary) -> void:
 	UI.label(_hud, "%s · %s" % [Levels.label(level_index), level["name"]], Vector2(944, 14), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, 300)
 	UI.label(_hud, c["name"], Vector2(944, 32), 9, Color("#9a9aa8"), HORIZONTAL_ALIGNMENT_RIGHT, 300)
 	UI.label(_hud, _diff["label"], Vector2(944, 48), 8, Color("#ffcc33"), HORIZONTAL_ALIGNMENT_RIGHT, 300)
+	if boss:
+		_boss_bar = Control.new()
+		_hud.add_child(_boss_bar)
+		_boss_bar.visible = false
+		UI.rect(_boss_bar, Rect2(272, 84, 416, 44), Color(0.043, 0.043, 0.051, 0.9), 3, Color("#ff3d7f"))
+		UI.label(_boss_bar, "BOSS · DER KOPIERER", Vector2(480, 92), 9, Color("#ff8a8a"))
+		_boss_fill = UI.rect(_boss_bar, Rect2(282, 108, 396, 12), Color("#ff3d7f"))
 	_refresh_hud()
 
 
@@ -487,7 +527,25 @@ func door_at(x: float, y: float) -> bool:
 	for d in _doors:
 		if not d["open"] and absf(d["x"] - x) < 23 and y < d["floor"] and y > d["floor"] - 180:
 			return true
+	for a in arenas:
+		if a["state"] == "active":
+			for g in [a["left"], a["right"]]:
+				if absf(g["x"] - x) < 23 and y < g["floor"] and y > g["floor"] - 180:
+					return true
 	return false
+
+
+## Läuft gerade ein Arena-Kampf? Dann gibt es die Arena zurück, sonst {}
+func active_arena() -> Dictionary:
+	for a in arenas:
+		if a["state"] == "active":
+			return a
+	return {}
+
+
+## Schaden von Geschossen (z. B. Boss)
+func damage_player(from_x: float) -> void:
+	_hurt(from_x)
 
 
 func on_screen(x: float, margin := 100.0) -> bool:
@@ -648,6 +706,7 @@ func _physics_process(delta: float) -> void:
 	_discover_enemies()
 	if _tutorial:
 		_tutorial.tick(now)
+	_update_arenas()
 	_check_enemies(c)
 	var pr := player.rect()
 	# Turnmatte: wer drauftritt oder drauffällt, wird hochgeschleudert
@@ -816,6 +875,98 @@ func _update_doors() -> void:
 				Sfx.play("land")
 
 
+# ---------------------------------------------------------------------- Kampfarenen
+
+func _update_arenas() -> void:
+	for a in arenas:
+		match a["state"]:
+			"idle":
+				var r: Rect2 = a["rect"]
+				if player.position.x > a["left"]["x"] + 70 and player.position.x < a["right"]["x"] - 30 and absf(player.bottom() - a["floor"]) < 20:
+					_start_arena(a)
+			"active":
+				if a["boss"]:
+					var b: Enemies.Copier = a["boss"]
+					_boss_fill.size.x = 396.0 * maxf(0, b.hp) / Enemies.Copier.MAX_HP
+					if not b.alive:
+						_clear_arena(a)
+					continue
+				var alive := (a["spawned"] as Array).filter(func(e): return e.alive)
+				if alive.is_empty() and now > a["next_wave"]:
+					if a["wave"] >= 3:
+						_clear_arena(a)
+					else:
+						_spawn_wave(a)
+
+
+func _set_gate(g: Dictionary, closed: bool) -> void:
+	(g["shape"] as CollisionShape2D).set_deferred("disabled", not closed)
+	var img: Sprite2D = g["img"]
+	img.texture = Art.tex("gate" if closed else "gate-open")
+	img.create_tween().tween_property(img, "position:y", g["floor"] if closed else g["floor"] - 168, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+
+func _start_arena(a: Dictionary) -> void:
+	a["state"] = "active"
+	a["wave"] = 0
+	a["next_wave"] = now + 700
+	_set_gate(a["left"], true)
+	_set_gate(a["right"], true)
+	shake(200, 0.01)
+	Sfx.play("bonk")
+	if a["boss"]:
+		(a["boss"] as Enemies.Copier).wake(now)
+		_boss_bar.visible = true
+		fx.text(player.position - Vector2(0, 80), "DER KOPIERER!", Color("#ff8a8a"))
+	else:
+		fx.text(player.position - Vector2(0, 80), "ARENA!", Color("#ffcc33"))
+
+
+func _spawn_wave(a: Dictionary) -> void:
+	a["wave"] += 1
+	var spawned: Array = a["spawned"]
+	spawned.clear()
+	var per := 1 if a["wave"] < 3 else 2
+	for sp in a["spawners"]:
+		for k in per:
+			var mouse := Enemies.DustMouse.new(self, sp + Vector2(k * 30 - (per - 1) * 15, 0))
+			enemies.append(mouse)
+			spawned.append(mouse)
+			fx.dust(sp, 4)
+	Sfx.play("rustle")
+	fx.text(Vector2(a["rect"].get_center().x, a["floor"] - 220), "Welle %d/3" % a["wave"], Color("#ffcc33"))
+	a["next_wave"] = now + 900
+
+
+func _clear_arena(a: Dictionary) -> void:
+	a["state"] = "done"
+	_set_gate(a["left"], false)
+	_set_gate(a["right"], false)
+	_bonus += 10
+	Sfx.play("checkpoint")
+	fx.leaves(player.position - Vector2(0, 40), 12)
+	fx.text(player.position - Vector2(0, 90), "Arena geschafft! +10", Color("#a6e07a"))
+	if _boss_bar:
+		_boss_bar.visible = false
+
+
+## Nach einem Fehlversuch: laufende Arena zurücksetzen (Gegner weg, Gitter auf, Boss voll)
+func _reset_arenas() -> void:
+	for a in arenas:
+		if a["state"] != "active":
+			continue
+		a["state"] = "idle"
+		for e in a["spawned"]:
+			if e.alive:
+				e.remove()
+		(a["spawned"] as Array).clear()
+		_set_gate(a["left"], false)
+		_set_gate(a["right"], false)
+		if a["boss"]:
+			(a["boss"] as Enemies.Copier).reset()
+			_boss_bar.visible = false
+
+
 ## Gegner, die zum ersten Mal ins Bild kommen, landen im Lexikon.
 func _discover_enemies() -> void:
 	var view := view_rect()
@@ -933,6 +1084,7 @@ func _fail(fell: bool) -> void:
 	for cr in _crumbles:
 		if cr["state"] != "idle":
 			_restore_crumble(cr)
+	_reset_arenas()
 	_freeze = 10
 	if not _tutorial:
 		fx.text(player.position - Vector2(0, 70), "Fehlversuch %d" % attempts, Color("#ff8a8a"))
@@ -1017,7 +1169,6 @@ func _show_result(seconds: float) -> void:
 	if new_best:
 		Save.data["best_times"][id] = seconds
 	Save.data["best_leaves"][id] = maxi(int(Save.data["best_leaves"].get(id, 0)), collected)
-	Save.data["progress"] = maxi(int(Save.data["progress"]), maxi(1, mini(level_index + 1, Levels.list.size() - 1)))
 	Save.data["coins"] = int(Save.data["coins"]) + reward
 	Save.persist()
 
@@ -1045,10 +1196,10 @@ func _show_result(seconds: float) -> void:
 			icon.scale = Vector2(0.2, 0.2)
 			icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.2 + i * 0.25)
 		UI.label(root, MEDALS[i][1], Vector2(mx, 344), 8, Color.WHITE if has else Color("#666c88"), HORIZONTAL_ALIGNMENT_CENTER, 150)
-	var has_next := level_index + 1 < Levels.list.size()
-	var first := UI.button(root, "Weiter" if has_next else "Nochmal", Vector2(_panel_x - 125, 430),
-		func(): Nav.goto("game", { "level": level_index + 1 if has_next else level_index }), 220, 50)
-	UI.button(root, "Level", Vector2(_panel_x + 125, 430), func(): Nav.goto("levels"), 220, 50)
+	var next := Levels.next_index(level_index)
+	var first := UI.button(root, "Weiter" if next >= 0 else "Nochmal", Vector2(_panel_x - 125, 430),
+		func(): Nav.goto("game", { "level": next if next >= 0 else level_index }), 220, 50)
+	UI.button(root, "Schulplan", Vector2(_panel_x + 125, 430), func(): Nav.goto("levels", { "focus": level_index }), 220, 50)
 	first.grab_focus.call_deferred()
 	_report("win")
 

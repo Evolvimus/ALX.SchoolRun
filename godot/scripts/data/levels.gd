@@ -11,19 +11,31 @@ extends RefCounted
 ## Ginkgo:   c Blatt   S Setzling (Checkpoint)   F großer Ginkgo (Ziel)   C großes Blatt mit Raupe   h Geheimheft
 ## Gegner:   m Staubmaus   e Papierflieger-Schwarm   w Wurmloch (benachbarte Löcher = ein Bücherwurm)
 ##           o Basketball  < > Laubbläser (bläst nach links/rechts)   N Magnet   f Bunsenbrenner
+## Arena:    A Arena-Gitter (zwei auf gleicher Höhe bilden eine Arena)   Y Spawner (Staubmäuse in 3 Wellen)
+##           X Boss „Der Kopierer“ (steht in einer Arena)
 ## Sonst:    P Start   T Übungsscheibe
 ##
 ## Alles, was „steht“ (S F C f < > w T D _ |), kommt in die Zelle direkt über seiner Standfläche.
 
 const T := 45
 
-## Reihenfolge der Level im Spiel. Neues Level: Szene anlegen und hier eintragen.
-const SCENES := [
-	"res://levels/tutorial.tscn",
-	"res://levels/westfluegel.tscn",
-	"res://levels/klassenzimmer.tscn",
-	"res://levels/turnhalle.tscn",
-	"res://levels/physikraum.tscn",
+## Kapitel und ihre Level in Spielreihenfolge. Neues Level: Szene anlegen und hier eintragen.
+## kind: "tutorial", "normal", "challenge" (optional, braucht Medaillen aus dem Kapitel) oder "boss"
+const CHAPTERS := [
+	{ "title": "Einführung", "levels": [
+		{ "scene": "res://levels/tutorial.tscn", "kind": "tutorial" },
+	] },
+	{ "title": "Kapitel 1 · Klassentrakt", "levels": [
+		{ "scene": "res://levels/westfluegel.tscn", "kind": "normal" },
+		{ "scene": "res://levels/klassenzimmer.tscn", "kind": "normal" },
+		{ "scene": "res://levels/treppenhaus.tscn", "kind": "normal" },
+		{ "scene": "res://levels/nachsitzen.tscn", "kind": "challenge", "medals": 6 },
+		{ "scene": "res://levels/kopierer.tscn", "kind": "boss" },
+	] },
+	{ "title": "Kapitel 2 · Sport & Naturwissenschaften", "levels": [
+		{ "scene": "res://levels/turnhalle.tscn", "kind": "normal" },
+		{ "scene": "res://levels/physikraum.tscn", "kind": "normal" },
+	] },
 ]
 
 ## Tutorial-Aufgaben je Level-ID: { at = Spalte, ab der sie erscheint, text, done = { type = ... }, opens_door }
@@ -44,17 +56,78 @@ const TUTORIALS := {
 	],
 }
 
-## Eingelesene Level: { id, name, bg, par, map (PackedStringArray), hints ([x, y, text] in Pixeln), tutorial? }
+## Eingelesene Level: { id, name, bg, par, map (PackedStringArray), hints ([x, y, text] in Pixeln), tutorial?,
+##                      chapter, slot, kind, medals_needed }
 static var list: Array[Dictionary] = []
 
 
 static func load_all() -> void:
 	list.clear()
-	for path in SCENES:
-		if ResourceLoader.exists(path):
-			list.append(_read(path))
-		else:
-			push_warning("Level fehlt: " + path)
+	for ci in CHAPTERS.size():
+		var slot := 0
+		for entry in CHAPTERS[ci]["levels"]:
+			if not ResourceLoader.exists(entry["scene"]):
+				push_warning("Level fehlt: " + entry["scene"])
+				continue
+			slot += 1
+			var lv := _read(entry["scene"])
+			lv["chapter"] = ci
+			lv["slot"] = slot
+			lv["kind"] = entry["kind"]
+			lv["medals_needed"] = int(entry.get("medals", 0))
+			list.append(lv)
+
+
+static func index_of(id: String) -> int:
+	for i in list.size():
+		if list[i]["id"] == id:
+			return i
+	return -1
+
+
+static func completed(i: int) -> bool:
+	return Save.data["best_times"].has(list[i]["id"])
+
+
+static func medal_count(level_id: String) -> int:
+	var n := 0
+	for v in (Save.data["medals"].get(level_id, {}) as Dictionary).values():
+		if v:
+			n += 1
+	return n
+
+
+## Medaillen aller Level eines Kapitels (das Herausforderungslevel selbst zählt nicht mit)
+static func chapter_medals(chapter: int) -> int:
+	var n := 0
+	for lv in list:
+		if lv["chapter"] == chapter and lv["kind"] != "challenge":
+			n += medal_count(lv["id"])
+	return n
+
+
+## Freigeschaltet? Tutorial und das erste Level von Kapitel 1 immer. Sonst muss das vorige Pflichtlevel
+## (bzw. das letzte Level des vorigen Kapitels) geschafft sein. Herausforderungen brauchen Medaillen.
+static func is_unlocked(i: int) -> bool:
+	if Nav.args.has("unlock-all"):
+		return true
+	var lv := list[i]
+	if lv["kind"] == "tutorial" or (lv["chapter"] == 1 and lv["slot"] == 1):
+		return true
+	if lv["kind"] == "challenge":
+		return chapter_medals(lv["chapter"]) >= lv["medals_needed"]
+	for j in range(i - 1, -1, -1):
+		if list[j]["kind"] != "challenge" and list[j]["kind"] != "tutorial":
+			return completed(j)
+	return true
+
+
+## Welches Level kommt nach i? Das nächste Pflichtlevel (Herausforderungen überspringt „Weiter“), sonst -1.
+static func next_index(i: int) -> int:
+	for j in range(i + 1, list.size()):
+		if list[j]["kind"] != "challenge":
+			return j
+	return -1
 
 
 static func _read(path: String) -> Dictionary:
@@ -94,9 +167,12 @@ static func _read(path: String) -> Dictionary:
 	return level
 
 
-## Anzeige-Name: „Tutorial“ oder die Levelnummer.
+## Anzeige-Name: „Tutorial“ oder Kapitel-Level, z. B. „1-3“.
 static func label(i: int) -> String:
-	return "Tutorial" if list[i].has("tutorial") else str(i)
+	var lv := list[i]
+	if lv["kind"] == "tutorial":
+		return "Tutorial"
+	return "%d-%d" % [lv["chapter"], lv["slot"]]
 
 
 ## Wie viele Blätter es im Level insgesamt zu holen gibt (großes Blatt der Raupe = 5).

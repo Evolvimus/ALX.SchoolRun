@@ -424,6 +424,22 @@ func _terrain() -> void:
 	# Druckplatte: oben = frei, gedrückt = flach und grün
 	_gen("plate-0", 15, 4, func():
 		px(0, 2, 15, 2, 0x555b66); px(2, 0, 11, 2, 0xd23b3b); px(2, 0, 11, 1, 0xff7b7b))
+	# Arena-Gitter (4 Kacheln hoch): Metallstäbe mit Warnlampe
+	var gate := func(closed: bool) -> void:
+		px(0, 0, 15, 4, 0x2f3640); px(0, 56, 15, 4, 0x2f3640)
+		for x in [1, 5, 9, 13]:
+			px(x, 4, 2, 52, 0x7d868b); px(x, 4, 1, 52, 0xb9c1c6)
+		for y in [18, 38]:
+			px(0, y, 15, 2, 0x555b66)
+		px(6, 0, 3, 3, 0xff3b3b if closed else 0x5be05b)
+	_gen("gate", 15, 60, func(): gate.call(true))
+	_gen("gate-open", 15, 60, func(): gate.call(false))
+	# Spawner: Lüftungsklappe an der Decke, aus der Staubmäuse fallen
+	_gen("spawner", 15, 6, func():
+		px(0, 0, 15, 6, 0x555b66); px(1, 1, 13, 4, 0x1b1b1f)
+		for x in range(2, 14, 3):
+			px(x, 1, 1, 4, 0x7d868b)
+		px(0, 5, 15, 1, 0x2f3640))
 	_gen("plate-1", 15, 4, func():
 		px(0, 2, 15, 2, 0x555b66); px(2, 1, 11, 1, 0x5be05b))
 
@@ -475,6 +491,35 @@ func _enemies() -> void:
 	var cat := { "g": 0x7ac74f, "d": 0x4f9a2e, "k": 0x2a2a1a, "w": 0xffffff }
 	_gen("cat-0", 10, 5, func(): sprite(["..........", "kk.gg.gg..", "kwggdggdgg", "kkggggdggg", ".d..d..d.d"], cat))
 	_gen("cat-1", 10, 5, func(): sprite(["....gg....", "kk.gddg...", "kwgg..gggg", "kkgg..dggg", ".d.d...d.d"], cat))
+	# Boss: Der Kopierer (40x30). Zu = gepanzert, offen = Deckel hoch, Inneres glüht (verwundbar)
+	var copier := func(open: bool, hot: bool) -> void:
+		var body := 0xd9dde2
+		var dk := 0x9aa3a8
+		px(2, 10, 36, 18, body); px(2, 10, 36, 1, 0xf4f6f8); px(2, 27, 36, 1, dk); px(2, 10, 1, 18, 0xeef1f4); px(37, 10, 1, 18, dk)
+		px(4, 28, 4, 2, 0x2f3640); px(32, 28, 4, 2, 0x2f3640)                     # Füße
+		px(6, 18, 22, 3, 0x2f3640); px(7, 19, 20, 1, 0x555b66)                     # Papierausgabe
+		px(6, 22, 22, 2, 0xf4f4f4); px(8, 22, 18, 1, 0xbdbdbd)                     # Papierstapel
+		px(30, 13, 6, 6, 0x2f3640); px(31, 14, 4, 2, 0x5bc0eb if not hot else 0xff3b3b) # Display
+		px(31, 17, 1, 1, 0x5be05b); px(33, 17, 1, 1, 0xffd23f); px(35, 17, 1, 1, 0xff3b3b)
+		px(5, 13, 3, 2, 0x555b66); px(9, 13, 3, 2, 0x555b66)                      # Lüftung
+		# „Gesicht“: zwei böse Augen im Scannerglas
+		if open:
+			px(1, 0, 38, 3, 0x9aa3a8); px(1, 0, 38, 1, 0xc9ccd6); px(3, 3, 34, 7, 0x2f3640) # Deckel hoch
+			px(4, 4, 32, 5, 0xfff0a0); px(6, 5, 28, 3, 0xffffff)                       # grelles Licht = Schwachstelle
+			px(12, 6, 4, 1, 0x2a2a3a); px(24, 6, 4, 1, 0x2a2a3a)
+		else:
+			px(1, 7, 38, 4, 0x9aa3a8); px(1, 7, 38, 1, 0xc9ccd6); px(3, 11, 34, 1, 0x555b66)  # Deckel zu
+			px(10, 8, 6, 2, 0xff3b3b if hot else 0x2a2a3a); px(24, 8, 6, 2, 0xff3b3b if hot else 0x2a2a3a)
+			px(12, 8, 2, 1, 0xffffff); px(26, 8, 2, 1, 0xffffff)
+	_gen("copier", 40, 30, func(): copier.call(false, false))
+	_gen("copier-hot", 40, 30, func(): copier.call(false, true))
+	_gen("copier-open", 40, 30, func(): copier.call(true, false))
+	_gen("sheet", 7, 5, func():
+		px(0, 0, 7, 5, 0xf4f4f4); px(1, 1, 5, 1, 0x9aa3a8); px(1, 3, 4, 1, 0x9aa3a8); px(6, 0, 1, 5, 0xbdbdbd))
+	_gen("paperwave", 15, 8, func():
+		for i in 4:
+			px(i * 2, 6 - i * 2, 15 - i * 3, 2, 0xf4f4f4 if i % 2 == 0 else 0xdadde2)
+		px(0, 7, 15, 1, 0x9aa3a8); px(12, 0, 3, 2, 0xff7b7b))
 	_gen("ball", 8, 8, func(): sprite(["..oooo..", ".ookooo.", "oookoooo", "kkkkkkkk", "oookoooo", "oookoooo", ".ookooo.", "..oooo.."], { "o": 0xe8742a, "k": 0x5a2a0c }))
 	# Übungsscheibe auf Holzständer
 	_gen("target", 15, 22, func():

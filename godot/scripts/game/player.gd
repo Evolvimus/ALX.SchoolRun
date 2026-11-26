@@ -205,6 +205,11 @@ func tick(now: float, dt: float, c: Dictionary) -> void:
 			floor_node = other
 		if other is Node and (other as Node).is_in_group("crate") and Chars.has_ability(char_data, "smash"):
 			game.break_crate(other)
+	if floor_node == null and is_on_floor():
+		# Steht still auf etwas (z. B. einem haltenden Rollwagen): kurz nach unten tasten, worauf
+		var probe := KinematicCollision2D.new()
+		if test_move(global_transform, Vector2(0, 3), probe):
+			floor_node = probe.get_collider() as Node
 
 	# Schlag
 	if not locked and c["attack"] and not _prev_attack and now >= _next_attack:
