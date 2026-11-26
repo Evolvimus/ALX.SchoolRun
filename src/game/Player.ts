@@ -204,7 +204,8 @@ export class Player {
     const b = this.body, v = this.view;
     v.setPosition(b.center.x, b.bottom + 1);
     if (this.animated) {
-      const frame = !ground ? '-j' : moving ? (Math.floor(time / 95) % 2 ? '-w1' : '-w2') : '';
+      const frame = !ground ? '-j' : moving ? (Math.floor(time / 95) % 2 ? '-w1' : '-w2')
+        : (Math.floor(time / 520) % 2 && this.scene.textures.exists(this.baseKey + '-i') ? '-i' : '');
       v.setTexture(this.baseKey + frame);
     } else {
       v.setAngle(!ground ? this.facing * 6 : moving ? Math.sin(time / 55) * 4 : 0);
