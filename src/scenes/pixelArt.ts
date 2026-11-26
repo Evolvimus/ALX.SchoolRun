@@ -50,6 +50,9 @@ const HEAD_LOOK = [
   '...HHHHHH...', '..HHHHHHHH..', '.HHHHHHHHHH.', '.HSSSSSSSSH.', '.SSSSSSSSSS.', '.SGGGSSGGGS.',
   '.SGEGSSGEGS.', '..SSSSSSSS..', '..STTMMTTS..', '...TSSSST...',
 ];
+// Zopf: hängt hinten (links, die Figur schaut nach rechts) vom Hinterkopf herunter, Z = Haargummi
+// Figur wird dafür 2 Pixel nach rechts gerückt (Textur 14 statt 12 breit).
+const PONYTAIL = ['...', '...', '.ZZ', 'HH.', 'HH.', 'H..', 'H..', 'H..'];
 const TORSO_LOOK = ['..VWWNNWWV..', '.VVVWNNWVVV.', 'WVVVVNNVVVVW', 'WWVVVNNVVVWW', 'SWVVVVVVVVWS', '..LLLLBLLL..'];
 const TORSO_LOOK_JUMP = ['S.VWWNNWWV.S', 'WVVVWNNWVVVW', '.WVVVNNVVVW.', '..VVVNNVVV..', '..VVVVVVVV..', '..LLLLBLLL..'];
 const LEGS_LOOK: Record<string, string[]> = {
@@ -85,8 +88,12 @@ export function makePixelTextures(scene: Phaser.Scene) {
   ALL_CHARACTERS.forEach((c, i) => {
     if (c.look) {
       const l = c.look;
-      const pal = { H: l.hair, S: l.skin, E: 0x1a1a2e, M: 0xa8584a, G: l.glasses, T: l.stubble, W: l.shirt, V: l.vest, N: l.tie, L: l.belt, B: 0xd9c070, P: l.pants, K: l.shoes };
-      for (const f of Object.keys(LEGS_LOOK)) gen(`char-${c.id}${f}`, 12, 20, () => sprite(g, [...HEAD_LOOK, ...(f === '-j' ? TORSO_LOOK_JUMP : TORSO_LOOK), ...LEGS_LOOK[f]], pal));
+      const pal = { Z: 0x2a1a10, H: l.hair, S: l.skin, E: 0x1a1a2e, M: 0xa8584a, G: l.glasses, T: l.stubble, W: l.shirt, V: l.vest, N: l.tie, L: l.belt, B: 0xd9c070, P: l.pants, K: l.shoes };
+      const off = l.ponytail ? 2 : 0;
+      for (const f of Object.keys(LEGS_LOOK)) gen(`char-${c.id}${f}`, 12 + off, 20, () => {
+        sprite(g, [...HEAD_LOOK, ...(f === '-j' ? TORSO_LOOK_JUMP : TORSO_LOOK), ...LEGS_LOOK[f]], pal, off);
+        if (l.ponytail) sprite(g, PONYTAIL, pal, 0, f === '-j' ? -1 : 0);
+      });
       return;
     }
     const pal = { H: HAIR[i % HAIR.length], S: 0xf2c49b, E: 0x1a1a2e, M: 0xb5524a, B: c.color, D: darken(c.color), P: 0x2e3a5c, K: 0x222222 };
