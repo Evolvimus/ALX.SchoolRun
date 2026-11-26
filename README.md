@@ -17,6 +17,12 @@ Ohne `.env` läuft das Spiel im **TESTMODUS**: Jeder formal gültige Code funkti
 2. ID in `public/characters/manifest.json` eintragen, z. B. `["lehrer01","lehrer02"]`.
 3. Name, Fach, Seltenheit und Fähigkeit in `src/data/characters.ts` anpassen.
 
+### Fertige Lehrer
+- **Herr Hammer** (`lehrer01`, Chemie · Bio, Legendär): eigene Detail-Pixelfigur mit animiertem Zopf, Hammer als Waffe, zerschlägt Kisten, Sprüche als Sprechblasen.
+- **Admin Hammer** (`lehrer01m`, Mythisch): zusätzlich Doppelsprung, goldener Hammer mit mehr Reichweite, Glitzer-Spur.
+
+Detailfiguren (36×60 Pixel) werden in `src/scenes/pixelArt.ts` (`drawDetailed`) gezeichnet; Farben und Merkmale stehen als `look` in `src/data/characters.ts`.
+
 Seltenheiten: **Selten → Super selten → Episch → Legendär → Mythisch**. Mythische Karten sind Spezialversionen einer Lehrkraft (z. B. `lehrer01m` = „Admin Hammer“) mit Extra-Fähigkeit, goldener Waffe und Glitzer-Spur. Sie gibt es nur über Karten-Codes, nicht im Shop. Codes dafür gezielt erzeugen: `npm run codes -- 5 lehrer01m`.
 
 Fähigkeiten: `doubleJump`, `speed`, `highJump`, `glide`, `smash` (Kisten zerschlagen).

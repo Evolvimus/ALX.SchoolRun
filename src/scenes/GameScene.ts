@@ -87,7 +87,8 @@ export class GameScene extends Phaser.Scene {
     this.buildObjects(mats);
     const touch = this.sys.game.device.input.touch;
     for (const [col, row, raw] of level.hints) {
-      const text = touch ? raw.replace('PFEILTASTEN', '< >').replace('LEERTASTE', '^') : raw;
+      const named = this.char.weapon && this.char.weapon !== 'ruler' ? raw.replace('LINEAL-HIEB', 'HAMMER-SCHLAG') : raw;
+      const text = touch ? named.replace('PFEILTASTEN', '< >').replace('LEERTASTE', '^') : named;
       this.add.text(col * T, row * T, text, { fontFamily: FONT, fontSize: '10px', color: '#ffffff', lineSpacing: 6, backgroundColor: '#0b0b0dcc', padding: { x: 8, y: 6 } })
         .setDepth(3);
     }

@@ -180,6 +180,7 @@ export function makePixelTextures(scene: Phaser.Scene) {
     if (c.look) {
       const l = c.look;
       for (const f of ['', '-i', '-w1', '-w2', '-j']) gen(`char-${c.id}${f}`, 36, 60, () => drawDetailed(g, l, f), 1);
+      gen(`bust-${c.id}`, 36, 36, () => drawDetailed(g, l, ''), 1); // Porträt für Karten: Kopf und Schultern
       return;
     }
     const pal = { H: HAIR[i % HAIR.length], S: 0xf2c49b, E: 0x1a1a2e, M: 0xb5524a, B: c.color, D: darken(c.color), P: 0x2e3a5c, K: 0x222222 };

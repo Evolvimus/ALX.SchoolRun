@@ -51,7 +51,8 @@ export class RedeemScene extends Phaser.Scene {
 
   private reveal(id: string, msg: Phaser.GameObjects.Text) {
     const c = getCharacter(id);
-    msg.setColor('#7dff7d').setText(`🎉 ${c.name} freigeschaltet!`);
+    if (c.rarity === 'mythisch') msg.setColor('#ff7fbf').setText(`✨ MYTHISCH! ${c.name} freigeschaltet! ✨`);
+    else msg.setColor('#7dff7d').setText(`🎉 ${c.name} freigeschaltet!`);
     const k = card(this, 480, 425, c, true, 0.1);
     this.tweens.add({ targets: k, scale: 1, angle: 360, duration: 700, ease: 'Back.Out' });
   }

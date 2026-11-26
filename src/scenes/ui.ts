@@ -43,7 +43,10 @@ export function card(scene: Phaser.Scene, x: number, y: number, c: Character, un
     items.push(glow);
     scene.tweens.add({ targets: glow, alpha: 0.2, duration: 700, yoyo: true, repeat: -1 });
   }
-  const img = scene.add.image(0, -15, portraitKey(scene, c));
+  // Detailfiguren zeigen auf der Karte ein Porträt, damit man das Gesicht erkennt
+  const bust = `bust-${c.id}`;
+  const real = scene.textures.exists(`img-${c.id}`);
+  const img = scene.add.image(0, -15, !real && scene.textures.exists(bust) ? bust : portraitKey(scene, c));
   img.setScale(Math.min(90 / img.width, 95 / img.height));
   if (!unlocked) img.setTintFill(0x111111);
   items.push(img);
