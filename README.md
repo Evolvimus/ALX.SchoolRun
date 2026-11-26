@@ -1,5 +1,8 @@
 # ALX SchoolRun 🏃‍♂️🎓
 
+> **Die Hauptversion ist jetzt die Godot-Version im Ordner [`godot/`](godot/README.md)** (App für Android/iOS, Web und PC).
+> Der Rest dieses Ordners ist der frühere Web-Prototyp (Phaser) plus Code-Generator und Supabase-Server, die weiterhin für beide Versionen gelten.
+
 2D-Jump-&-Run des Abikomitees. Spielbare Charaktere sind 20 Lehrer:innen, die über **einmalig einlösbare Codes** auf den ALX-Sammelkarten freigeschaltet werden. Nach der Kartenaktion kann man sie im Shop mit verdienten **Ginkgo-Talern** kaufen. Es gibt keine Echtgeld-Käufe und keine Werbung.
 
 **Plattformen:** Browser (PC) · Android-App (Play Store, über Capacitor)

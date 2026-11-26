@@ -1,0 +1,43 @@
+; ALX SchoolRun – Godot-4-Projekt
+config_version=5
+
+[application]
+
+config/name="ALX SchoolRun"
+config/description="Das Jump & Run des Abikomitees"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+Art="*res://scripts/autoload/art.gd"
+Save="*res://scripts/autoload/save.gd"
+Sfx="*res://scripts/autoload/sfx.gd"
+Backend="*res://scripts/autoload/backend.gd"
+Nav="*res://scripts/autoload/nav.gd"
+
+[display]
+
+window/size/viewport_width=960
+window/size/viewport_height=540
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+window/handheld/orientation=4
+
+[gui]
+
+theme/custom_font="res://fonts/PressStart2P.woff2"
+
+[physics]
+
+2d/default_gravity=1400.0
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+environment/defaults/default_clear_color=Color(0.0431, 0.0431, 0.051, 1)
