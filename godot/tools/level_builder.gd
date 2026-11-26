@@ -3,8 +3,12 @@ extends RefCounted
 ## Werkzeug: erzeugt den Kachelsatz für den Editor (levels/tileset.tres) und macht aus den Textkarten
 ## in tools/level_seeds.gd fertige Levelszenen (levels/<id>.tscn).
 ##
-## Aufruf:   godot --path . -- --build-levels            (legt nur fehlende Szenen an)
-##           godot --path . -- --build-levels --force    (überschreibt ALLE Levelszenen – Vorsicht!)
+## Aufruf:   godot --path . -- --build-levels                       (legt nur fehlende Szenen an)
+##           godot --path . -- --build-levels --only=treppenhaus    (genau diese Level neu erzeugen, Komma-Liste)
+##           godot --path . -- --build-levels --force               (überschreibt ALLE Levelszenen – Vorsicht!)
+##
+## Quellen: tools/level_seeds.gd (Code) und tools/seeds/<id>.txt (Textkarten, gehen vor). Aufbau einer .txt:
+##   name=Treppenhaus / bg=bg-school / par=120 / hint=Spalte,Zeile,TEXT (\n = neue Zeile) / map: / danach die Karte
 ##
 ## Nach dem ersten Erzeugen werden die Level im Godot-Editor bearbeitet, nicht mehr hier.
 
@@ -19,22 +23,65 @@ const TILES := [
 	["m", "mouse-0"], ["e", "plane"], ["w", "worm"], ["o", "ball"], ["<", "blower-0"], [">", "blower-0"],
 	["N", "magnet"], ["f", "burner"],
 	["P", "char-schueler"], ["T", "target"],
+	["A", "gate"], ["Y", "spawner"], ["X", "copier"],
 ]
 ## Diese Kacheln sitzen im Spiel am oberen Rand der Zelle, alle anderen stehen unten.
-const TOP_ALIGNED := "=~-|"
+const TOP_ALIGNED := "=~-Y"
 
 
-static func run(force: bool) -> void:
+static func run(force: bool, only := "") -> void:
 	var ts := _build_tileset()
 	var err := ResourceSaver.save(ts, TILESET)
 	print("Kachelsatz gespeichert: ", TILESET, " (", error_string(err), ")")
 	ts = load(TILESET)
+	var seeds := {}
 	for seed in LevelSeeds.all():
-		var path := "res://levels/%s.tscn" % seed["id"]
-		if ResourceLoader.exists(path) and not force:
+		seeds[seed["id"]] = seed
+	for file in DirAccess.get_files_at("res://tools/seeds"):
+		if file.ends_with(".txt"):
+			var seed := _read_txt("res://tools/seeds/" + file)
+			seeds[seed["id"]] = seed
+	var wanted := only.split(",", false)
+	for id in seeds:
+		var seed: Dictionary = seeds[id]
+		var path := "res://levels/%s.tscn" % id
+		if wanted.size() > 0:
+			if not id in wanted:
+				continue
+		elif ResourceLoader.exists(path) and not force:
 			print("übersprungen (existiert schon): ", path)
 			continue
 		_build_scene(seed, ts, path)
+
+
+static func _read_txt(path: String) -> Dictionary:
+	var seed := { "id": path.get_file().get_basename(), "name": "Neues Level", "bg": "bg-school", "par": 60.0, "hints": [] }
+	var rows := PackedStringArray()
+	var in_map := false
+	for line in FileAccess.get_file_as_string(path).split("\n"):
+		if in_map:
+			rows.append(line.trim_suffix("\r"))
+			continue
+		if line.begins_with("map:"):
+			in_map = true
+		elif line.begins_with("name="):
+			seed["name"] = line.substr(5).strip_edges()
+		elif line.begins_with("bg="):
+			seed["bg"] = line.substr(3).strip_edges()
+		elif line.begins_with("par="):
+			seed["par"] = float(line.substr(4))
+		elif line.begins_with("hint="):
+			var parts := line.substr(5).split(",", true, 2)
+			seed["hints"].append([int(parts[0]), int(parts[1]), parts[2].replace("\\n", "\n")])
+	while rows.size() > 0 and rows[rows.size() - 1].strip_edges() == "":
+		rows.remove_at(rows.size() - 1)
+	var w := 0
+	for r in rows:
+		w = maxi(w, r.length())
+	for i in rows.size():
+		rows[i] = rows[i].rpad(w)
+	seed["map"] = rows
+	return seed
 
 
 static func _build_tileset() -> TileSet:

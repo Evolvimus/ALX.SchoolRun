@@ -35,7 +35,7 @@ func _ready() -> void:
 		args[parts[0]] = parts[1] if parts.size() > 1 else true
 	_setup_input()
 	if args.has("build-levels"):
-		LevelBuilder.run(args.has("force"))
+		LevelBuilder.run(args.has("force"), str(args.get("only", "")))
 		get_tree().quit.call_deferred()
 		return
 	Levels.load_all()

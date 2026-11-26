@@ -28,8 +28,16 @@ Ohne Editor aus dem Terminal: `godot --path godot`
 Auf Handy und Tablet erscheinen Touch-Buttons (am PC zum Testen mit `--touch`).
 
 ## Inhalt
-- **Tutorial „Erster Schultag“** + 4 Level: Der Westflügel (langes Musterlevel über zwei Stockwerke), Klassenzimmer, Turnhalle, Physikraum
-- **8 Gegner** mit Gegner-Lexikon (`scripts/game/enemies.gd`, Texte in `scripts/data/bestiary.gd`)
+- **Tutorial „Erster Schultag“**
+- **Kapitel 1 · Klassentrakt** (Musterkapitel):
+  - 1-1 Der Westflügel (zwei Stockwerke, alle neuen Mechaniken)
+  - 1-2 Klassenzimmer (lang, Kampfarena, Kartonwand, Doppelsprung-Sims)
+  - 1-3 Treppenhaus (drei Stockwerke nach oben, Aufzug, Kartonwand)
+  - 1-4 Nachsitzen (Herausforderung, braucht 6 Medaillen aus Kapitel 1)
+  - 1-5 **Boss: Der Kopierer**
+- **Kapitel 2 · Sport & Naturwissenschaften:** Turnhalle, Physikraum (noch die kurzen Level, werden später ausgebaut)
+- **Schulplan** statt Levelauswahl: Kapitel als Wege, Medaillen und Hefte pro Station
+- **9 Gegner** inkl. Boss, mit Gegner-Lexikon (`scripts/game/enemies.gd`, Texte in `scripts/data/bestiary.gd`)
 - **Ginkgo-Thema**: goldene Blätter sammeln, Setzlinge als Checkpoints, grüne Blätter als Leben, Ginkgo wird am Ziel golden
 - **Figuren** (`scripts/data/chars.gd`): Herr Hammer (Legendär, Hammer, Sprüche, Zopf), Admin Hammer (Mythisch, goldener Hammer, Doppelsprung, Glitzer-Spur), 19 Platzhalter
 - **Alle Figuren sind gleich groß** (90 px = zwei Kacheln). Detailfiguren (36×60 Pixel) werden 1,5-fach, einfache Figuren (12×20) 4,5-fach gezeigt. Bei 1280×720 und 1920×1080 bleiben alle Pixel scharf.
@@ -42,6 +50,23 @@ Auf Handy und Tablet erscheinen Touch-Buttons (am PC zum Testen mit `--touch`).
 - **Geheimhefte:** bis zu 3 pro Level, an versteckten oder schweren Stellen. Einmal gefunden, bleiben sie gefunden.
 - **Medaillen** pro Level: *Alle Blätter*, *Ohne Treffer* (kein Treffer, kein Fehlversuch), *Zielzeit*. Jede neue Medaille bringt 25 Taler.
 
+## Freischalten
+- Tutorial und 1-1 sind immer offen. Jedes weitere Pflichtlevel braucht das vorige.
+- Kapitel 2 öffnet sich nach dem Boss von Kapitel 1.
+- **Herausforderungen** (z. B. 1-4 Nachsitzen) sind optional und brauchen Medaillen aus ihrem Kapitel. „Weiter“ überspringt sie.
+
+## Kampfarenen und Boss
+- Zwei **Arena-Gitter** (`A`) auf gleicher Höhe bilden eine Arena. Wer hineinläuft, wird eingesperrt.
+- **Spawner** (`Y`) in der Arena werfen 3 Wellen Staubmäuse ab (in der letzten Welle doppelt so viele). Danach gehen die Gitter auf, es gibt 10 Bonus-Taler.
+- Steht der **Boss** (`X`) in einer Arena, startet der Bosskampf mit Lebensleiste oben. Die Gitter öffnen sich, wenn er besiegt ist.
+- **Der Kopierer:** wirft Papierblätter, schickt Papierwellen über den Boden (überspringen!) und überhitzt dann. Nur wenn der Deckel offen ist und es grell leuchtet, nimmt er Schaden: Lineal 1, Hammer 2, Draufspringen 2. Ab halber Energie ist er schneller und greift doppelt an.
+- Nach einem Fehlversuch wird die Arena zurückgesetzt (Gegner weg, Boss wieder voll).
+
+## Fähigkeiten-Wege (Sammelkarten lohnen sich)
+- **Kartonwände** (`B`): nur Herr Hammer zertrümmert sie. Dahinter liegen Geheimhefte.
+- **Hohe Simse**: nur mit Doppelsprung erreichbar (z. B. Admin Hammer).
+- So hat jede Lehrer-Fähigkeit im Level einen eigenen Nutzen, und das Tauschen der Karten lohnt sich.
+
 ## Mechaniken
 | Kachel | Name | Verhalten |
 |---|---|---|
@@ -53,6 +78,9 @@ Auf Handy und Tablet erscheinen Touch-Buttons (am PC zum Testen mit `--touch`).
 | `M` | Turnmatte | schleudert hoch |
 | `=` | Brett | von unten durchspringbar |
 | `B` | Karton | nur Herr Hammer zertrümmert ihn (gut für Geheimwege) |
+| `A` | Arena-Gitter | zwei auf gleicher Höhe = Arena |
+| `Y` | Spawner | wirft in einer Arena 3 Wellen Staubmäuse ab |
+| `X` | Boss „Der Kopierer“ | muss in einer Arena stehen |
 
 ## Level bauen (Kachel-Editor)
 Level sind Szenen in `levels/`. So entsteht ein neues:
@@ -63,13 +91,14 @@ Level sind Szenen in `levels/`. So entsteht ein neues:
    - Der Hintergrund wiederholt sich alle 9 Zeilen nach oben, ein Stockwerk ist also 9 Kacheln hoch.
 3. Im Inspektor des obersten Knotens **Level**: Titel, Hintergrund und Zielzeit einstellen.
 4. Hinweistexte: unter **Hints** Label-Knoten anlegen und hinschieben. Platzhalter: `{LAUFEN}` `{SPRINGEN}` `{HOCH}` `{HIEB}` `{WAFFE}`.
-5. Die Szene in `scripts/data/levels.gd` in die Liste `SCENES` eintragen (die Reihenfolge dort ist die Reihenfolge im Spiel).
+5. Die Szene in `scripts/data/levels.gd` in die Liste `CHAPTERS` beim passenden Kapitel eintragen, mit `kind` = `normal`, `challenge` (plus `medals`) oder `boss`. Die Reihenfolge dort ist die Reihenfolge im Spiel.
 6. Testen: `godot --path godot -- --level=N` und mit `--bot --quit` prüfen, ob es lösbar ist.
 
 Die Bedeutung aller Kacheln steht oben in `scripts/data/levels.gd`. Im Kachelsatz sind sie in dieser Reihenfolge:
-Boden, Brett, Regal, Labortisch, Turnkasten, Karton, Bröckelbrett, Rollwagen, Aufzug, Sprossenwand, Matte, Reißzwecken, Druckplatte, Tür, Blatt, Geheimheft, Setzling, Ziel-Ginkgo, Raupe, Staubmaus, Papierflieger, Wurmloch, Basketball, Laubbläser links, Laubbläser rechts, Magnet, Bunsenbrenner, Start, Übungsscheibe.
+Boden, Brett, Regal, Labortisch, Turnkasten, Karton, Bröckelbrett, Rollwagen, Aufzug, Sprossenwand, Matte, Reißzwecken, Druckplatte, Tür, Blatt, Geheimheft, Setzling, Ziel-Ginkgo, Raupe, Staubmaus, Papierflieger, Wurmloch, Basketball, Laubbläser links, Laubbläser rechts, Magnet, Bunsenbrenner, Start, Übungsscheibe, Arena-Gitter, Spawner, Boss.
 
-Der Kachelsatz (`levels/tileset.tres`) und die Start-Level wurden mit `godot --path godot -- --build-levels` aus `tools/level_seeds.gd` erzeugt. **Vorsicht:** `--build-levels --force` überschreibt alle Levelszenen mit den Textkarten.
+Der Kachelsatz (`levels/tileset.tres`) und die Start-Level wurden mit `godot --path godot -- --build-levels` aus `tools/level_seeds.gd` und den Textkarten in `tools/seeds/*.txt` erzeugt. Eine Textkarte ist einfach die Levelkarte als Text (ein Zeichen pro Kachel). Wer lieber tippt als malt, kann so ein Level auch als Text schreiben und mit `--build-levels --only=<id>` in eine Szene verwandeln.
+**Vorsicht:** `--build-levels --force` und `--only=<id>` überschreiben die betroffenen Levelszenen mit den Textkarten. Änderungen, die im Editor gemacht wurden, gehen dabei verloren.
 
 ## Echte Lehrerbilder
 Ein Bild als `characters/<id>.png` (z. B. `characters/lehrer02.png`) ersetzt die Pixel-Figur automatisch. Besser: Aussehen als `look` in `scripts/data/chars.gd` eintragen, dann zeichnet das Spiel eine Detailfigur wie bei Herrn Hammer (`_draw_detailed` in `scripts/autoload/art.gd`).
@@ -84,6 +113,34 @@ Vorlagen für **Android, iOS, Web, Windows, macOS** stehen in `export_presets.cf
 - **Android (Play Store)**: Android SDK + Java einrichten (*Editor → Editoreinstellungen → Export → Android*), Release-Keystore eintragen, als `.aab` exportieren.
 - **iOS (App Store)**: auf einem Mac mit Xcode, Apple-Team-ID im iOS-Preset eintragen.
 - **Web**: ergibt `build/web/index.html` für den PC-Browser.
+
+## iOS und TestFlight (iPhone + iPad)
+Das geht nur auf einem **Mac mit Xcode**. Die Exportvorlage „iOS“ ist für iPhone und iPad eingestellt (ab iOS 14), das App-Icon liegt in `icons/ios_1024.png`.
+
+**Einmalig vorbereiten**
+1. **Apple Developer Program** (99 €/Jahr) für das Konto, unter dem die App erscheinen soll. Die **Team ID** steht unter developer.apple.com → Account → Membership.
+2. **Xcode** aus dem Mac App Store installieren, einmal öffnen, unter *Settings → Accounts* mit dieser Apple-ID anmelden.
+3. **Godot 4.3** installieren und im Editor unter *Editor → Export-Vorlagen verwalten* die Vorlagen für 4.3 herunterladen.
+4. In **App Store Connect** (appstoreconnect.apple.com) unter *Apps → +* eine neue App anlegen: Plattform iOS, Name „ALX SchoolRun“, Bundle-ID `de.alx.schoolrun`.
+   - Ist die Bundle-ID schon vergeben, eine eigene wählen (z. B. `de.<schule>.schoolrun`) und in `export_presets.cfg` beim iOS-Preset bei `application/bundle_identifier` eintragen.
+   - Die Bundle-ID muss vorher unter developer.apple.com → *Identifiers* angelegt sein (Xcode macht das beim ersten Signieren meist automatisch).
+5. Optional für automatisches Hochladen: in App Store Connect unter *Benutzer und Zugriff → Integrationen → App Store Connect API* einen Schlüssel (Rolle „App-Manager“) anlegen. Die Datei `AuthKey_<KEY_ID>.p8` nach `~/.appstoreconnect/private_keys/` legen und Key-ID und Issuer-ID notieren.
+
+**Bauen und hochladen** (im Ordner `godot/`)
+```bash
+TEAM_ID=ABCDE12345 ./tools/testflight.sh
+# oder gleich mit Upload:
+TEAM_ID=ABCDE12345 ASC_KEY_ID=XYZ123 ASC_ISSUER_ID=1234-abcd-... ./tools/testflight.sh
+```
+Ohne API-Schlüssel die entstandene `build/ios/ALX-SchoolRun.ipa` mit der App **Transporter** hochladen.
+
+**In TestFlight verteilen**
+- Nach 10–30 Minuten erscheint der Build in App Store Connect unter **TestFlight**.
+- **Interne Tester** (bis 100 Personen mit Zugang zum Developer-Team) können sofort testen.
+- **Externe Tester** (bis 10.000, z. B. per öffentlichem Link für die Schule) brauchen eine kurze Beta-Prüfung durch Apple (meist 1 Tag) sowie eine Beschreibung und eine Kontakt-E-Mail.
+- Die Tester installieren die App **TestFlight** aus dem App Store und nehmen die Einladung an. Die App läuft auf iPhone und iPad.
+
+Die Frage nach Verschlüsselung (Exportbestimmungen) ist mit `ITSAppUsesNonExemptEncryption = false` schon beantwortet.
 
 ## Testen
 Startoptionen (nach `--`), z. B. `godot --path godot -- --level=2 --char=lehrer01 --unlock-all`:
@@ -100,4 +157,4 @@ Startoptionen (nach `--`), z. B. `godot --path godot -- --level=2 --char=lehrer0
 | `--bot --quit` | ein Testbot spielt das Level und gibt `BOT_RESULT …` aus |
 
 `./tests/run_bots.sh` lässt den Bot alle Level mit drei Figuren spielen und meldet, ob alles lösbar ist.
-Der Bot läuft immer nach rechts, klettert Sprossenwände hoch, fährt Rollwagen und Aufzüge. Geheimwege und Wege nach links prüft er nicht.
+Der Bot läuft immer nach rechts, klettert Sprossenwände hoch, fährt Rollwagen und Aufzüge, kämpft in Arenen und besiegt den Kopierer. Geheimwege und Wege nach links prüft er nicht.

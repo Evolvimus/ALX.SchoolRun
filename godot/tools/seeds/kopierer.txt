@@ -1,0 +1,17 @@
+name=Der Kopierer
+bg=bg-school
+par=75
+hint=2,2,BOSS: DER KOPIERER\nWELLEN ÜBERSPRINGEN, BEI\nOFFENEM DECKEL ZUSCHLAGEN!
+map:
+
+
+
+
+            ccc               ccc
+            ===               ===
+
+
+  P ccS  A              X          A    F
+############################################
+############################################
+############################################
