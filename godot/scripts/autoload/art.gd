@@ -9,6 +9,8 @@ extends Node
 const WORLD := 3.0
 
 var textures := {}
+## Die Rohbilder dazu (für den Kachel-Editor, siehe tools/level_builder.gd)
+var images := {}
 var _img: Image
 
 
@@ -51,6 +53,7 @@ static func darken(hex: int, f := 0.7) -> int:
 func _gen(key: String, w: int, h: int, draw: Callable) -> void:
 	_img = Image.create(w, h, false, Image.FORMAT_RGBA8)
 	draw.call()
+	images[key] = _img
 	textures[key] = ImageTexture.create_from_image(_img)
 
 
@@ -405,6 +408,24 @@ func _terrain() -> void:
 		px(6, 2, 3, 3, 0x5be05b if open else 0xff3b3b)
 	_gen("door", 15, 60, func(): door.call(false))
 	_gen("door-open", 15, 60, func(): door.call(true))
+	# Bröckelbrett: Kreideablage mit Rissen
+	_gen("crumble", 15, 6, func():
+		px(0, 0, 15, 6, 0xcdb38a); px(0, 0, 15, 1, 0xf0e0bf); px(0, 5, 15, 1, 0x8a7350)
+		px(4, 1, 1, 3, 0x8a7350); px(5, 3, 1, 2, 0x8a7350); px(10, 0, 1, 2, 0x8a7350); px(11, 2, 1, 3, 0x8a7350); px(1, 4, 2, 1, 0xffffff))
+	# Rollwagen (bewegliche Plattform, 2 Kacheln breit)
+	_gen("mover", 30, 6, func():
+		px(0, 0, 30, 3, 0xb9c1c6); px(0, 0, 30, 1, 0xe4e8ea); px(0, 3, 30, 1, 0x5f676b)
+		px(2, 4, 4, 2, 0x222222); px(24, 4, 4, 2, 0x222222); px(13, 4, 4, 1, 0x7d868b); px(1, 1, 1, 1, 0xd23b3b); px(28, 1, 1, 1, 0xd23b3b))
+	# Sprossenwand zum Klettern
+	_gen("ladder", 15, 15, func():
+		px(2, 0, 2, 15, 0xa8703f); px(11, 0, 2, 15, 0xa8703f); px(2, 0, 1, 15, 0xc98b4f); px(11, 0, 1, 15, 0xc98b4f)
+		for y in [2, 7, 12]:
+			px(2, y, 11, 2, 0xd69a5c); px(2, y + 1, 11, 1, 0x8f5a2e))
+	# Druckplatte: oben = frei, gedrückt = flach und grün
+	_gen("plate-0", 15, 4, func():
+		px(0, 2, 15, 2, 0x555b66); px(2, 0, 11, 2, 0xd23b3b); px(2, 0, 11, 1, 0xff7b7b))
+	_gen("plate-1", 15, 4, func():
+		px(0, 2, 15, 2, 0x555b66); px(2, 1, 11, 1, 0x5be05b))
 
 
 # ------------------------------------------------------------------ Gegner
@@ -462,6 +483,17 @@ func _enemies() -> void:
 
 
 func _misc() -> void:
+	# Geheimheft
+	_gen("heft", 9, 11, func():
+		px(0, 0, 9, 11, 0x2b4fa8); px(0, 0, 1, 11, 0x1a2f66); px(8, 0, 1, 11, 0x1f3a80); px(1, 10, 8, 1, 0x1f3a80)
+		px(2, 2, 5, 3, 0xf4f4f4); px(3, 3, 3, 1, 0x9aa3a8); px(3, 7, 3, 2, 0xffc626); px(4, 9, 1, 1, 0x6e5012))
+	# Medaillen: alle Blätter, ohne Treffer, unter Zielzeit
+	var medal := func(symbol: Array, pal: Dictionary) -> void:
+		circle(5.5, 5.5, 5.5, 0x8a5a00); circle(5.5, 5.5, 4.5, 0xffc626); circle(4.5, 4.5, 2.0, 0xffe98a)
+		sprite(symbol, pal, 3, 3)
+	_gen("medal-leaves", 11, 11, func(): medal.call(["g.g.g", "ggggg", ".ggg.", "..g..", "..g.."], { "g": 0x2f7a22 }))
+	_gen("medal-clean", 11, 11, func(): medal.call([".r.r.", "rrrrr", "rrrrr", ".rrr.", "..r.."], { "r": 0xc0282d }))
+	_gen("medal-time", 11, 11, func(): medal.call([".kkk.", "k.k.k", "k.kkk", "k...k", ".kkk."], { "k": 0x2b2b3a }))
 	_gen("check", 9, 7, func(): sprite(["........#", ".......##", "#.....##.", "##...##..", ".##.##...", "..###....", "...#....."], { "#": 0x6cff6c }))
 	_gen("dot", 1, 1, func(): px(0, 0, 1, 1, 0xffffff))
 	_gen("touch", 30, 30, func(): circle(15, 15, 15, 0xffffff, 0.22))

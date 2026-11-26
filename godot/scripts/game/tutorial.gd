@@ -6,7 +6,6 @@ const T := 45.0
 
 var game: Game
 var steps: Array
-var doors: Array
 var index := 0
 var shown_at := 0.0
 var done_at := 0.0
@@ -22,10 +21,9 @@ var _check: TextureRect
 var _keys := {}
 
 
-func setup(g: Game, step_list: Array, door_list: Array, layer: CanvasLayer, touch: bool, weapon_name: String) -> void:
+func setup(g: Game, step_list: Array, layer: CanvasLayer, touch: bool, weapon_name: String) -> void:
 	game = g
 	steps = step_list
-	doors = door_list
 	y = 122.0 if touch else 466.0
 	_keys = { "LAUFEN": "< >" if touch else "PFEILTASTEN", "SPRINGEN": "^" if touch else "LEERTASTE", "HIEB": "X", "WAFFE": weapon_name }
 	_box = Panel.new()
@@ -110,22 +108,6 @@ func tick(now: float) -> void:
 		_style.border_color = Color("#6cff6c")
 		_check.visible = true
 		if step.get("opens_door", false):
-			_open_next_door()
+			game.open_next_door()
 	if done_at and now - done_at > 900:
 		_show(index + 1)
-
-
-func _open_next_door() -> void:
-	for d in doors:
-		if d["open"]:
-			continue
-		d["open"] = true
-		var img: Sprite2D = d["img"]
-		img.texture = Art.tex("door-open")
-		await get_tree().create_timer(0.25).timeout
-		(d["body"] as Node).queue_free()
-		game.fx.dust(img.position - Vector2(0, 20), 10)
-		var tw := img.create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-		tw.tween_property(img, "position:y", img.position.y - 190, 0.6)
-		tw.tween_property(img, "modulate:a", 0.15, 0.6)
-		return

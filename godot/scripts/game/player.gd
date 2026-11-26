@@ -15,6 +15,12 @@ var bubble: Label
 
 var facing := 1
 var lives := 3
+## Hängt gerade an einer Sprossenwand
+var climbing := false
+## Worauf die Figur gerade steht (Rollwagen, Boden …) oder null
+var floor_node: Node
+## Wie lange man nach einem Treffer unverwundbar ist (ms)
+var invuln_ms := 1500.0
 var safe_until := 0.0
 var swing_id := 0
 ## Von Gegnern pro Frame gesetzt: Wind (Zielgeschwindigkeit) und Kraft (Beschleunigung)
@@ -133,6 +139,38 @@ func tick(now: float, dt: float, c: Dictionary) -> void:
 	if is_on_wall() and signf(get_wall_normal().x) == -signf(_vx):
 		_vx = 0
 
+	# Klettern an der Sprossenwand: hoch/runter, mit Richtung + Sprung seitlich abspringen
+	var on_ladder: bool = game.ladder_at(position) or game.ladder_at(Vector2(position.x, bottom() - 4))
+	if climbing:
+		if not on_ladder or locked:
+			climbing = false
+		elif c["jump"] and not _prev_jump and dir != 0:
+			climbing = false
+			_vx = dir * 220.0
+			_jump(jump_v * 0.75)
+			Sfx.play("jump")
+		else:
+			var vdir := int(c["down"]) - int(c["up"])
+			velocity = Vector2(dir * 110.0, vdir * 170.0)
+			_vx = 0
+			_ext_vx = 0
+			move_and_slide()
+			if vdir > 0 and is_on_floor():
+				climbing = false
+			_prev_jump = c["jump"]
+			_prev_attack = c["attack"]
+			_was_ground = true
+			floor_node = null
+			_draw_view(now, true, vdir != 0 or dir != 0)
+			return
+	elif not locked and on_ladder and c["up"]:
+		climbing = true
+		velocity = Vector2.ZERO
+	elif not locked and ground and c["down"] and game.ladder_at(Vector2(position.x, bottom() + 12)):
+		climbing = true  # von oben in die Sprossenwand einsteigen
+		position.y += 12
+		velocity = Vector2.ZERO
+
 	# Springen: Sprungpuffer + Coyote Time + variable Höhe
 	var pressed: bool = c["jump"] and not _prev_jump
 	if pressed:
@@ -159,9 +197,12 @@ func tick(now: float, dt: float, c: Dictionary) -> void:
 	_ext_vx = Enemies.approach(_ext_vx, wind_target, 1500 * dt) if wind_target != 0 else Enemies.approach(_ext_vx, 0, 520 * dt)
 	velocity.x = _vx + _ext_vx
 	move_and_slide()
+	floor_node = null
 	for i in get_slide_collision_count():
 		var col := get_slide_collision(i)
 		var other := col.get_collider()
+		if other is Node and col.get_normal().y < -0.5:
+			floor_node = other
 		if other is Node and (other as Node).is_in_group("crate") and Chars.has_ability(char_data, "smash"):
 			game.break_crate(other)
 
@@ -232,7 +273,7 @@ func hurt(now: float, from_x: float) -> bool:
 	if now < safe_until:
 		return false
 	lives -= 1
-	safe_until = now + 1500
+	safe_until = now + invuln_ms
 	_lock_until = now + 260
 	_vx = (-1 if position.x < from_x else 1) * 260.0
 	velocity.y = -380
@@ -242,6 +283,7 @@ func hurt(now: float, from_x: float) -> bool:
 func respawn(now: float, pos: Vector2) -> void:
 	position = pos
 	velocity = Vector2.ZERO
+	climbing = false
 	_vx = 0
 	_ext_vx = 0
 	safe_until = now + 1500

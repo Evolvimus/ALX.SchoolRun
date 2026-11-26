@@ -22,6 +22,7 @@ func _defaults() -> Dictionary:
 		"player_id": _uuid(), "unlocked": ["schueler"], "selected": "schueler", "coins": 0,
 		"best_times": {}, "best_leaves": {}, "progress": 1, "muted": false,
 		"seen": [], "defeated": {}, "mock_used": [],
+		"difficulty": "normal", "medals": {}, "hefte": {},
 	}
 
 

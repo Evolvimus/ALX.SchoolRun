@@ -8,6 +8,21 @@ func _ready() -> void:
 	UI.screen(self)
 	UI.background(self)
 	UI.title(self, "Level wählen", 44)
+	# Schwierigkeitsstufe umschalten
+	var order := ["entspannt", "normal", "abi"]
+	var info := { "entspannt": "5 Leben · nach Sturz geht es direkt daneben weiter", "normal": "3 Leben · zurück zum Setzling", "abi": "1 Leben · 50 % mehr Taler" }
+	var diff_label := UI.label(self, "", Vector2(940, 62), 8, Color("#c8c8d8"), HORIZONTAL_ALIGNMENT_RIGHT, 420)
+	var diff := UI.button(self, "", Vector2(840, 34), func(): pass, 200, 36)
+	diff.add_theme_font_size_override("font_size", 10)
+	var show := func():
+		var d: String = Save.data["difficulty"]
+		diff.text = "Stufe: " + Game.DIFFICULTY[d]["label"]
+		diff_label.text = info[d]
+	show.call()
+	diff.pressed.connect(func():
+		Save.data["difficulty"] = order[(order.find(Save.data["difficulty"]) + 1) % order.size()]
+		Save.persist()
+		show.call())
 	var n := Levels.list.size()
 	var step := minf(290.0, 920.0 / n)
 	var cw := step - 18
@@ -50,8 +65,8 @@ func _ready() -> void:
 		preview.size = Vector2(cw - 20, 130)
 		var label := Levels.label(i)
 		var dim := Color("#666c88")
-		UI.label(card, label, Vector2(cw / 2, 152), 16 if label.length() > 2 else 26, UI.YELLOW if open else dim, HORIZONTAL_ALIGNMENT_CENTER, cw)
-		UI.label(card, lv["name"], Vector2(cw / 2, 192), 11, Color.WHITE if open else dim, HORIZONTAL_ALIGNMENT_CENTER, cw)
+		UI.label(card, label, Vector2(cw / 2, 148), 14 if label.length() > 2 else 24, UI.YELLOW if open else dim, HORIZONTAL_ALIGNMENT_CENTER, cw)
+		UI.label(card, lv["name"], Vector2(cw / 2, 184), 10 if lv["name"].length() < 14 else 9, Color.WHITE if open else dim, HORIZONTAL_ALIGNMENT_CENTER, cw)
 		if lv.has("tutorial") and best == null:
 			var tag := UI.label(self, "START HIER!", Vector2(x, y - 176), 10, UI.INK, HORIZONTAL_ALIGNMENT_CENTER, 130)
 			var s := StyleBoxFlat.new()
@@ -65,9 +80,20 @@ func _ready() -> void:
 			UI.label(card, "Gesperrt", Vector2(cw / 2, 240), 10, dim, HORIZONTAL_ALIGNMENT_CENTER, cw)
 			continue
 		var got := int(Save.data["best_leaves"].get(id, 0))
-		UI.image(card, "leaf", Vector2(cw / 2 - 52, 236), 1.1)
-		UI.label(card, "%d/%d" % [got, Levels.count_leaves(lv)], Vector2(cw / 2 - 30, 230), 11, Color("#ffd23f"), HORIZONTAL_ALIGNMENT_LEFT, cw)
-		UI.label(card, "Bestzeit %.1fs" % best if best != null else "Noch offen", Vector2(cw / 2, 268), 9, Color("#c8c8d8"), HORIZONTAL_ALIGNMENT_CENTER, cw)
+		var hefte_total := Levels.count_hefte(lv)
+		var lx := cw / 2 - (62.0 if hefte_total > 0 else 30.0)
+		UI.image(card, "leaf", Vector2(lx, 222), 1.0)
+		UI.label(card, "%d/%d" % [got, Levels.count_leaves(lv)], Vector2(lx + 16, 217), 9, Color("#ffd23f"), HORIZONTAL_ALIGNMENT_LEFT, cw)
+		if hefte_total > 0:
+			var owned: Array = Save.data["hefte"].get(id, [])
+			UI.image(card, "heft", Vector2(cw / 2 + 34, 222), 1.6)
+			UI.label(card, "%d/%d" % [owned.size(), hefte_total], Vector2(cw / 2 + 46, 217), 9, Color("#8fb4ff"), HORIZONTAL_ALIGNMENT_LEFT, cw)
+		var medals: Dictionary = Save.data["medals"].get(id, {})
+		for m in Game.MEDALS.size():
+			var icon := UI.image(card, "medal-" + Game.MEDALS[m][0], Vector2(cw / 2 + (m - 1) * 30, 250), 2.0)
+			if not medals.get(Game.MEDALS[m][0], false):
+				icon.modulate = Color(0.2, 0.2, 0.26)
+		UI.label(card, "Bestzeit %.1fs" % best if best != null else "Noch offen", Vector2(cw / 2, 272), 8, Color("#c8c8d8"), HORIZONTAL_ALIGNMENT_CENTER, cw)
 		card.pressed.connect(func():
 			Sfx.play("click")
 			Nav.goto("game", { "level": i }))
