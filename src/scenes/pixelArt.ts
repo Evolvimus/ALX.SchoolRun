@@ -47,6 +47,22 @@ const LEGS: Record<string, string[]> = {
 };
 const HAIR = [0x3b2414, 0x8a5a2b, 0xd9b44a, 0x1a1a1a, 0xa0a0a0, 0xb5452b];
 
+/**
+ * Eigenes Aussehen für echte Lehrer (bis das Foto da ist).
+ * Herr Hammer: Werkkittel, Schutzbrille auf der Stirn, Schnurrbart, Bleistift in der Brusttasche.
+ */
+const LOOKS: Record<string, { head: string[]; torso: string[]; torsoJump: string[]; pal: Record<string, number> }> = {
+  lehrer01: {
+    head: [
+      '...HHHHHH...', '..HHHHHHHH..', '.HOOOOOOOOH.', '.OGGOOOOGGO.', '.HSSSSSSSSH.', '..SEESSEES..',
+      '..SSSSSSSS..', '..SMMMMMMS..', '...SSSSSS...',
+    ],
+    torso: ['..CCCWWCCC..', '.CCCCWWCCCC.', 'SCCCCWWCYCCS', 'SSCCCCCCCCSS', '.SCCCCCCCCS.', '..CCCCCCCC..'],
+    torsoJump: ['S.CCCWWCCC.S', 'SCCCCWWCCCCS', '.CCCCWWCYCC.', '..CCCCCCCC..', '..CCCCCCCC..', '..CCCCCCCC..'],
+    pal: { H: 0x6b5a4a, O: 0xe8742a, G: 0x9fe0ff, S: 0xf2c49b, E: 0x1a1a2e, M: 0x5a4030, C: 0x2f5fa8, W: 0xf4f4f4, Y: 0xffd23f, P: 0x3a3a40, K: 0x5a3a1a },
+  },
+};
+
 function darken(c: number, f = 0.7) {
   const r = (c >> 16) & 255, gg = (c >> 8) & 255, b = c & 255;
   return (Math.floor(r * f) << 16) | (Math.floor(gg * f) << 8) | Math.floor(b * f);
@@ -86,9 +102,14 @@ export function makePixelTextures(scene: Phaser.Scene) {
 
   // ---- Spielfiguren (Platzhalter) mit Lauf- und Sprungbild ----
   ALL_CHARACTERS.forEach((c, i) => {
-    const pal = { H: HAIR[i % HAIR.length], S: 0xf2c49b, E: 0x1a1a2e, M: 0xb5524a, B: c.color, D: darken(c.color), P: 0x2e3a5c, K: 0x222222 };
-    for (const f of Object.keys(LEGS)) gen(`char-${c.id}${f}`, 12, 20, () => sprite(g, [...HEAD, ...(f === '-j' ? TORSO_JUMP : TORSO), ...LEGS[f]], pal));
+    const look = LOOKS[c.id];
+    const pal = look?.pal ?? { H: HAIR[i % HAIR.length], S: 0xf2c49b, E: 0x1a1a2e, M: 0xb5524a, B: c.color, D: darken(c.color), P: 0x2e3a5c, K: 0x222222 };
+    const head = look?.head ?? HEAD, torso = look?.torso ?? TORSO, torsoJump = look?.torsoJump ?? TORSO_JUMP;
+    for (const f of Object.keys(LEGS)) gen(`char-${c.id}${f}`, 12, 20, () => sprite(g, [...head, ...(f === '-j' ? torsoJump : torso), ...LEGS[f]], pal));
   });
+  gen('hammer', 16, 6, () => sprite(g, [
+    '...........ggggg', '...........hhhhh', 'wwwwwwwwwwwhhhhh', 'dddddddddddhhhhh', '...........hhhhh', '...........ggggg',
+  ], { g: 0x5a5f69, h: 0xa8adb7, w: 0xc98b4f, d: 0x8f5a2e }));
   gen('ruler', 16, 3, () => { px(g, 0, 0, 16, 3, 0xffd23f); px(g, 0, 2, 16, 1, 0xc99a14); for (let i = 1; i < 16; i += 2) px(g, i, 0, 1, i % 4 === 1 ? 2 : 1, 0x6b4a00); });
 
   // ---- Ginkgo: Schullogo als roter Faden ----

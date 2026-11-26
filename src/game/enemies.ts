@@ -34,9 +34,10 @@ export abstract class Enemy {
   visibleAt(): { x: number; y: number } | null { const h = this.hitbox(); return h ? { x: h.centerX, y: h.centerY } : null; }
   protected onHurt(_dir: number) {}
 
-  hit(dir: number) {
+  hit(dir: number, damage = 1) {
     if (!this.alive) return;
-    if (--this.hp <= 0) this.die(dir); else { sfx.hit(); this.onHurt(dir); }
+    this.hp -= damage;
+    if (this.hp <= 0) this.die(dir); else { sfx.hit(); this.onHurt(dir); }
   }
   stomp() { this.die(0); }
   protected die(dir: number) {

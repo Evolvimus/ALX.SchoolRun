@@ -40,7 +40,11 @@ export async function isShopOpen(): Promise<boolean> {
 }
 
 // ---- Testmodus ohne Server: jeder formal gültige Code klappt einmal pro Gerät ----
+/** Feste Testcodes, die im Testmodus immer denselben Lehrer freischalten. Auf dem Server gibt es sie nicht. */
+export const TEST_CODES: Record<string, string> = { 'ALX-HAMM-ER2N': 'lehrer01' };
+
 function mockRedeem(code: string): RedeemResult {
+  if (TEST_CODES[code]) return { ok: true, characterId: TEST_CODES[code] };
   const used: string[] = JSON.parse(localStorage.getItem('alx-mock-used') ?? '[]');
   if (used.includes(code)) return { ok: false, reason: 'used' };
   used.push(code);

@@ -55,6 +55,8 @@ export const sfx = {
     tone(f * 1.5, 0.1, { type: 'triangle', vol: 0.07, delay: 0.05 });
   },
   swing: () => noise(0.07, 0.04),
+  heavySwing: () => { noise(0.1, 0.05); tone(150, 0.1, { slide: 0.6, vol: 0.04 }); },
+  bonk: () => { tone(120, 0.14, { slide: 0.45, vol: 0.12 }); noise(0.09, 0.08); },
   hit: () => { tone(180, 0.1, { slide: 0.5, vol: 0.09 }); noise(0.06, 0.06); },
   defeat: () => { tone(520, 0.08); tone(780, 0.12, { delay: 0.07 }); },
   hurt: () => tone(220, 0.3, { type: 'sawtooth', slide: 0.35, vol: 0.09 }),

@@ -54,9 +54,11 @@ export class Player {
     this.animated = this.baseKey.startsWith('char-');
     this.view = scene.add.sprite(x, y, this.baseKey).setOrigin(0.5, 1).setDepth(10);
     this.baseScale = 60 / this.view.height;
-    this.ruler = scene.add.image(x, y, 'ruler').setOrigin(0.08, 0.5).setDepth(11).setVisible(false);
+    this.ruler = scene.add.image(x, y, char.weapon === 'hammer' ? 'hammer' : 'ruler').setOrigin(0.08, 0.5).setDepth(11).setVisible(false);
   }
 
+  /** Hammer: doppelter Schaden, zertrümmert Kisten */
+  get heavy() { return this.char.weapon === 'hammer'; }
   get x() { return this.body.center.x; }
   get y() { return this.body.center.y; }
   get onGround() { return this.body.blocked.down || this.body.touching.down; }
@@ -120,7 +122,7 @@ export class Player {
       this.swingId++;
       this.attackUntil = time + 150;
       this.nextAttack = time + 320;
-      sfx.swing();
+      if (this.heavy) sfx.heavySwing(); else sfx.swing();
     }
     this.prevAttack = c.attack;
 

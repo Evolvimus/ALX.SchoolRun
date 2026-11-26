@@ -11,6 +11,7 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 Ohne `.env` läuft das Spiel im **TESTMODUS**: Jeder formal gültige Code funktioniert einmal pro Gerät.
+Fester Testcode für **Herr Hammer**: `ALX-HAMM-ER2N` (nur im Testmodus, auf dem Server gibt es ihn nicht).
 
 ## Lehrerbilder einfügen
 1. Bild als PNG (freigestellt, transparenter Hintergrund, Hochformat ca. 200×300 px) nach `public/characters/lehrer01.png` usw. legen.
@@ -18,6 +19,9 @@ Ohne `.env` läuft das Spiel im **TESTMODUS**: Jeder formal gültige Code funkti
 3. Name, Fach, Seltenheit und Fähigkeit in `src/data/characters.ts` anpassen.
 
 Fähigkeiten: `doubleJump`, `speed`, `highJump`, `glide`, `smash` (Kisten zerschlagen).
+
+### Herr Hammer (lehrer01)
+Erster echter Lehrer. Bis das Foto da ist, hat er eine eigene Pixel-Figur (Werkkittel, Schutzbrille, Schnurrbart) in `src/scenes/pixelArt.ts` unter `LOOKS`. Statt des Lineals schwingt er einen **Hammer**: doppelter Schaden (Bücherwurm und Laubbläser fallen mit einem Hieb) und er zertrümmert Kartons. Echte Karten-Codes für ihn: `npm run codes -- 50 lehrer01`.
 
 ## Codes erzeugen (einmalig gültig)
 ```bash

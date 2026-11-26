@@ -110,12 +110,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player.zone, this.solids);
     this.physics.add.collider(this.player.zone, mats, () => { if (this.player.body.touching.down) this.player.bounce(-880); });
     this.physics.add.collider(this.player.zone, this.crates, (_p, c) => {
-      if (this.char.ability !== 'smash') return;
-      const crate = c as Phaser.Physics.Arcade.Image;
-      crate.disableBody();
-      this.fx.burst(crate.x, crate.y, 0xb8834c, 12);
-      sfx.hit();
-      this.tweens.add({ targets: crate, alpha: 0, scale: 1.4, duration: 150, onComplete: () => crate.destroy() });
+      if (this.char.ability === 'smash') this.breakCrate(c as Phaser.Physics.Arcade.Image);
     });
 
     this.cameras.main.startFollow(this.player.zone, true, 0.14, 0.14, -90, 0);
@@ -376,8 +371,24 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** Karton zertrümmern (Herr Hammer) */
+  private breakCrate(crate: Phaser.Physics.Arcade.Image) {
+    if (!crate.body?.enable) return;
+    crate.disableBody();
+    this.fx.burst(crate.x, crate.y, 0xb8834c, 14);
+    this.fx.burst(crate.x, crate.y, 0xd9c7a0, 6);
+    this.cameras.main.shake(90, 0.006);
+    sfx.bonk();
+    this.tweens.add({ targets: crate, alpha: 0, scale: 1.4, angle: 12, duration: 160, onComplete: () => crate.destroy() });
+  }
+
   private checkEnemies(time: number, c: Controls) {
     const p = this.player, pr = p.rect(), atk = p.attackRect(time);
+    if (atk && p.heavy) {
+      for (const crate of this.crates.getChildren() as Phaser.Physics.Arcade.Image[]) {
+        if (Rect.Overlaps(atk, new Rect(crate.x - 22, crate.y - 22, 44, 44))) this.breakCrate(crate);
+      }
+    }
     for (const e of this.enemies) {
       if (!e.alive) continue;
       const hb = e.hitbox();
@@ -385,8 +396,8 @@ export class GameScene extends Phaser.Scene {
       if (atk && e.hittable && e.lastSwing !== p.swingId && Rect.Overlaps(atk, hb)) {
         e.lastSwing = p.swingId;
         this.fx.burst(hb.centerX, hb.centerY, 0xffffff, 6);
-        this.cameras.main.shake(70, 0.004);
-        e.hit(p.facing);
+        if (p.heavy) { this.cameras.main.shake(110, 0.008); sfx.bonk(); } else this.cameras.main.shake(70, 0.004);
+        e.hit(p.facing, p.heavy ? 2 : 1);
         continue;
       }
       if (!Rect.Overlaps(pr, hb)) continue;
