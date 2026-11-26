@@ -11,8 +11,10 @@ export interface Character {
   subject: string;
   rarity: Rarity;
   ability: Ability;
+  /** Waffe für den Nahkampf (Standard: Lineal) */
+  weapon?: 'ruler' | 'hammer';
   color: number; // Platzhalterfarbe, solange kein Bild da ist
-  price: number; // Preis in ALX-Talern, nach Ende der Kartenaktion
+  price: number; // Preis in Ginkgo-Talern, nach Ende der Kartenaktion
   starter?: boolean;
 }
 
@@ -24,7 +26,7 @@ export const RARITY_COLOR: Record<Rarity, number> = {
 };
 export const ABILITY_LABEL: Record<Ability, string> = {
   none: 'Keine', doubleJump: 'Doppelsprung', speed: 'Sprinter', highJump: 'Supersprung',
-  glide: 'Gleiten (Sprung halten)', smash: 'Kisten zerschlagen',
+  glide: 'Gleiten (Sprung halten)', smash: 'Hammer: doppelter Schaden, zertrümmert Kisten',
 };
 const PRICE: Record<Rarity, number> = { gewoehnlich: 150, selten: 300, episch: 600, legendaer: 1200 };
 
@@ -51,6 +53,7 @@ export const TEACHERS: Character[] = rarities.map((rarity, i) => {
     subject: i === 0 ? 'Werken' : 'Fach ?',
     rarity,
     ability: i === 0 ? 'smash' : abilities[i % abilities.length],
+    weapon: i === 0 ? 'hammer' : 'ruler',
     color: colors[i],
     price: PRICE[rarity],
   };

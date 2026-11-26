@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { backButton, button, card, FONT, title } from './ui';
+import { backButton, button, card, FONT, title, menuBackground } from './ui';
 import { validateCode } from '../services/codeFormat';
-import { redeemCode } from '../services/backend';
-import { unlock } from '../services/save';
+import { isTestMode, redeemCode } from '../services/backend';
+import { persist, save, unlock } from '../services/save';
 import { getCharacter } from '../data/characters';
 
 export class RedeemScene extends Phaser.Scene {
@@ -11,10 +11,11 @@ export class RedeemScene extends Phaser.Scene {
   constructor() { super('Redeem'); }
 
   create() {
+    menuBackground(this);
     title(this, 'Karten-Code einlösen');
     this.add.text(480, 110, 'Den Code findest du auf der Rückseite deiner ALX-Sammelkarte.\nJeder Code funktioniert nur ein einziges Mal!',
-      { fontFamily: FONT, fontSize: '18px', color: '#fff', align: 'center' }).setOrigin(0.5);
-    const msg = this.add.text(480, 315, '', { fontFamily: FONT, fontSize: '20px', color: '#fff', align: 'center' }).setOrigin(0.5);
+      { fontFamily: FONT, fontSize: '11px', color: '#fff', align: 'center' }).setOrigin(0.5);
+    const msg = this.add.text(480, 315, '', { fontFamily: FONT, fontSize: '12px', color: '#fff', align: 'center' }).setOrigin(0.5);
 
     this.codeEl = document.getElementById('code-input') as HTMLInputElement;
     this.codeEl.value = '';
@@ -40,17 +41,20 @@ export class RedeemScene extends Phaser.Scene {
         return;
       }
       unlock(res.characterId);
+      save.selected = res.characterId; // neuer Lehrer ist sofort spielbar
+      persist();
       this.codeEl.value = '';
       this.reveal(res.characterId, msg);
     };
     this.codeEl.onkeydown = e => { if (e.key === 'Enter') submit(); };
     button(this, 480, 262, 'Einlösen', submit, 200);
+    if (isTestMode) this.add.text(480, 528, 'TESTMODUS · Testcode Herr Hammer: ALX-HAMM-ER2N', { fontFamily: FONT, fontSize: '9px', color: '#ff9b9b' }).setOrigin(0.5);
     backButton(this);
   }
 
   private reveal(id: string, msg: Phaser.GameObjects.Text) {
     const c = getCharacter(id);
-    msg.setColor('#7dff7d').setText(`🎉 ${c.name} freigeschaltet!`);
+    msg.setColor('#7dff7d').setText(`${c.name} freigeschaltet!\nEr ist jetzt ausgewählt.`);
     const k = card(this, 480, 425, c, true, 0.1);
     this.tweens.add({ targets: k, scale: 1, angle: 360, duration: 700, ease: 'Back.Out' });
   }

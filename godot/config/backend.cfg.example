@@ -1,0 +1,5 @@
+; Kopiere diese Datei nach backend.cfg und trage die Werte aus Supabase ein
+; (Project Settings -> API). Ohne backend.cfg läuft das Spiel im TESTMODUS.
+[supabase]
+url="https://DEIN-PROJEKT.supabase.co"
+anon_key="DEIN-ANON-KEY"

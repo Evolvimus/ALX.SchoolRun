@@ -1,164 +1,521 @@
 import Phaser from 'phaser';
-import { LEVELS } from '../data/levels';
+import { LEVELS, Level, countLeaves, levelLabel } from '../data/levels';
+import { beast } from '../data/bestiary';
 import { getCharacter, Character } from '../data/characters';
 import { persist, save } from '../services/save';
+import { sfx } from '../services/audio';
 import { button, FONT, portraitKey } from './ui';
+import { Controls, NO_CONTROLS, Player } from '../game/Player';
+import { Fx } from '../game/fx';
+import { Ball, Blower, Bookworm, Burner, Caterpillar, DustMouse, Enemy, Magnet, Plane, Target } from '../game/enemies';
+import { Door, Tutorial } from '../game/tutorial';
+import { botControls } from '../game/bot';
 
 const T = 45;
+const BAR = 72; // schwarze Anzeige-Leiste oben
+const FULL = '#KRL';
+const Rect = Phaser.Geom.Rectangle;
+
+interface Leaf { img: Phaser.GameObjects.Image; x: number; y: number; value: number; taken: boolean; }
+interface Checkpoint { x: number; y: number; img: Phaser.GameObjects.Image; active: boolean; }
 
 export class GameScene extends Phaser.Scene {
-  private player!: Phaser.Physics.Arcade.Sprite;
+  player!: Player;
+  fx!: Fx;
+  solids!: Phaser.Physics.Arcade.StaticGroup;
+  crates!: Phaser.Physics.Arcade.StaticGroup;
+  enemies: Enemy[] = [];
+  spikes: Phaser.Geom.Rectangle[] = [];
+
   private char!: Character;
+  private level!: Level;
+  private levelIndex = 0;
+  private startCheckpoint = -1;
+  private grid: string[] = [];
+  private leaves: Leaf[] = [];
+  private checkpoints: Checkpoint[] = [];
+  private checkpointIndex = -1;
+  private spawn = new Phaser.Math.Vector2();
+  private goalX = 0;
+  private treeGold!: Phaser.GameObjects.Image;
+  private total = 0;
+  private collected = 0;
+  private bonus = 0;
+  private combo = 0;
+  private lastLeafAt = 0;
+  private startTime = -1;
+  private done = false;
+  private bot = false;
+  private panelX = 480;
+  private bg!: Phaser.GameObjects.TileSprite;
+  private tutorial: Tutorial | null = null;
+  private doors: Door[] = [];
+  private toasts: string[] = [];
+  private toastBusy = false;
+  private hudLives: Phaser.GameObjects.Image[] = [];
+  private hudLeaves!: Phaser.GameObjects.Text;
+  private hudTime!: Phaser.GameObjects.Text;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private touch = { left: false, right: false, jump: false };
-  private jumpWasDown = false;
-  private airJumps = 0;
-  private coins = 0;
-  private startTime = 0;
-  private done = false;
-  private hud!: Phaser.GameObjects.Text;
-  private start = new Phaser.Math.Vector2();
+  private touch = { left: false, right: false, jump: false, attack: false };
 
   constructor() { super('Game'); }
 
+  init(data: { level?: number; checkpoint?: number }) {
+    this.levelIndex = Phaser.Math.Clamp(data.level ?? 0, 0, LEVELS.length - 1);
+    this.startCheckpoint = data.checkpoint ?? -1;
+  }
+
+  // ------------------------------------------------------------------ Aufbau
   create() {
-    this.done = false; this.coins = 0; this.touch = { left: false, right: false, jump: false };
+    this.enemies = []; this.spikes = []; this.leaves = []; this.checkpoints = []; this.doors = []; this.toasts = []; this.toastBusy = false;
+    this.collected = this.bonus = this.combo = 0;
+    this.done = false; this.startTime = -1; this.checkpointIndex = -1; this.panelX = 480;
+    this.touch = { left: false, right: false, jump: false, attack: false };
+    this.bot = new URLSearchParams(location.search).has('bot');
     this.char = getCharacter(save.selected);
-    const level = LEVELS[0];
-    const W = level.map[0].length * T, H = level.map.length * T;
-    this.physics.world.setBounds(0, 0, W, H + 200);
-    this.cameras.main.setBounds(0, 0, W, H).setBackgroundColor('#87ceeb');
-    this.add.rectangle(W / 2, H - 60, W, 120, 0xb0d8f0).setScrollFactor(0.3); // Hintergrund
+    const level = this.level = LEVELS[this.levelIndex];
+    this.grid = level.map;
+    this.total = countLeaves(level);
+    const W = this.grid[0].length * T, H = this.grid.length * T;
 
-    const solids = this.physics.add.staticGroup();
-    const crates = this.physics.add.staticGroup();
-    const coins = this.physics.add.staticGroup();
-    const hazards = this.physics.add.staticGroup();
-    const enemies = this.physics.add.group({ allowGravity: false });
-    let goal!: Phaser.Physics.Arcade.Image;
+    this.physics.world.setBounds(0, 0, W, H + 400);
+    this.physics.world.resume();
+    this.cameras.main.setBounds(0, 0, W, H).setBackgroundColor('#0b0b0d');
+    this.bg = this.add.tileSprite(480, 202.5, 960, 405, level.bg).setScrollFactor(0);
+    this.fx = new Fx(this);
+    this.solids = this.physics.add.staticGroup();
+    this.crates = this.physics.add.staticGroup();
+    const mats = this.physics.add.staticGroup();
 
-    level.map.forEach((row, ry) => [...row].forEach((ch, rx) => {
-      const x = rx * T + T / 2, y = ry * T + T / 2;
+    this.buildTerrain();
+    this.buildObjects(mats);
+    const touch = this.sys.game.device.input.touch;
+    for (const [col, row, raw] of level.hints) {
+      const text = touch ? raw.replace('PFEILTASTEN', '< >').replace('LEERTASTE', '^') : raw;
+      this.add.text(col * T, row * T, text, { fontFamily: FONT, fontSize: '10px', color: '#ffffff', lineSpacing: 6, backgroundColor: '#0b0b0dcc', padding: { x: 8, y: 6 } })
+        .setDepth(3);
+    }
+
+    // Start am Anfang oder (nach „Nachsitzen“) am letzten Setzling
+    if (this.startCheckpoint >= 0 && this.checkpoints[this.startCheckpoint]) {
+      for (let i = 0; i <= this.startCheckpoint; i++) this.checkpoints[i].img.setTexture('seed-1');
+      for (let i = 0; i <= this.startCheckpoint; i++) this.checkpoints[i].active = true;
+      const cp = this.checkpoints[this.startCheckpoint];
+      this.spawn.set(cp.x, cp.y - 30);
+      this.checkpointIndex = this.startCheckpoint;
+    }
+    this.player = new Player(this, this.spawn.x, this.spawn.y, this.char);
+
+    this.physics.add.collider(this.player.zone, this.solids);
+    this.physics.add.collider(this.player.zone, mats, () => { if (this.player.body.touching.down) this.player.bounce(-880); });
+    this.physics.add.collider(this.player.zone, this.crates, (_p, c) => {
+      if (this.char.ability === 'smash') this.breakCrate(c as Phaser.Physics.Arcade.Image);
+    });
+
+    this.cameras.main.startFollow(this.player.zone, true, 0.14, 0.14, -90, 0);
+    this.cursors = this.input.keyboard!.createCursorKeys();
+    this.keys = this.input.keyboard!.addKeys('W,A,D,SPACE,X,J,M,ESC') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys.ESC.on('down', () => this.scene.start('Levels'));
+    this.keys.M.on('down', () => sfx.toggleMute());
+
+    this.createHud();
+    this.createTouchControls();
+    this.tutorial = level.tutorial ? new Tutorial(this, level.tutorial, this.doors, this.sys.game.device.input.touch) : null;
+    (window as unknown as Record<string, unknown>).__alx = { level: this.levelIndex, result: null };
+  }
+
+  /** Zusammenhängende Kacheln einer Zeile werden zu einem Kollisionskörper – das verhindert Hängenbleiben an Kanten. */
+  private buildTerrain() {
+    const solid = (c0: number, c1: number, ry: number, thin: boolean) => {
+      const w = (c1 - c0 + 1) * T;
+      this.solids.add(this.add.zone(c0 * T + w / 2, thin ? ry * T + 9 : ry * T + T / 2, w, thin ? 18 : T));
+    };
+    const TILE: Record<string, string> = { K: 'box', R: 'shelf', L: 'lab' };
+    this.grid.forEach((row, ry) => {
+      let run = -1, thin = -1;
+      for (let rx = 0; rx <= row.length; rx++) {
+        const ch = row[rx] ?? ' ';
+        const full = FULL.includes(ch);
+        if (full && run < 0) run = rx;
+        if (!full && run >= 0) { solid(run, rx - 1, ry, false); run = -1; }
+        if (ch === '=' && thin < 0) thin = rx;
+        if (ch !== '=' && thin >= 0) { solid(thin, rx - 1, ry, true); thin = -1; }
+        const x = rx * T + T / 2, y = ry * T + T / 2;
+        if (ch === '#') this.add.image(x, y, this.grid[ry - 1]?.[rx] === '#' ? 'under' : 'ground').setDepth(5);
+        else if (TILE[ch]) this.add.image(x, y, TILE[ch]).setDepth(5);
+        else if (ch === '=') this.add.image(x, y - 13, 'platform').setDepth(5);
+      }
+    });
+  }
+
+  private buildObjects(mats: Phaser.Physics.Arcade.StaticGroup) {
+    const holes: { x: number; y: number; col: number }[] = [];
+    let burners = 0;
+    this.grid.forEach((row, ry) => [...row].forEach((ch, rx) => {
+      const x = rx * T + T / 2, y = ry * T + T / 2, floor = (ry + 1) * T;
       switch (ch) {
-        case '#': solids.create(x, y, 'ground'); break;
-        case '=': solids.create(x, y - 13, 'platform'); break;
-        case 'B': crates.create(x, y, 'crate'); break;
-        case 'c': coins.create(x, y, 'coin'); break;
-        case '^': hazards.create(x, y, 'spikes').setSize(40, 20).setOffset(2, 25); break;
-        case 'e': {
-          const e = enemies.create(x, y, 'plane') as Phaser.Physics.Arcade.Image;
-          this.tweens.add({ targets: e, x: x - 180, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.InOut',
-            onYoyo: () => e.setFlipX(true), onRepeat: () => e.setFlipX(false) });
+        case 'M': mats.create(x, y + 15, 'mat').setDepth(5); break;
+        case 'B': this.crates.create(x, y, 'crate').setDepth(5); break;
+        case '^': this.add.image(x, y, 'spikes').setDepth(5); this.spikes.push(new Rect(x - 20, floor - 14, 40, 14)); break;
+        case 'c': this.addLeaf(this.add.image(x, y, 'leaf').setDepth(6), x, y, 1); break;
+        case 'S': this.checkpoints.push({ x, y: floor, img: this.add.image(x, floor, 'seed-0').setOrigin(0.5, 1).setDepth(6), active: false }); break;
+        case 'F':
+          this.goalX = x;
+          this.add.image(x, floor, 'tree-bare').setOrigin(0.5, 1).setDepth(4);
+          this.treeGold = this.add.image(x, floor, 'tree-gold').setOrigin(0.5, 1).setDepth(4).setAlpha(0);
+          break;
+        case 'P': this.spawn.set(x, y - 12); break;
+        case 'm': this.enemies.push(new DustMouse(this, x, y + 6)); break;
+        case 'e': for (let i = 0; i < 3; i++) this.enemies.push(new Plane(this, x, y, i)); break;
+        case 'w': holes.push({ x, y: floor, col: rx }); break;
+        case 'o': this.enemies.push(new Ball(this, x, y)); break;
+        case '<': this.enemies.push(new Blower(this, x, floor, -1)); break;
+        case '>': this.enemies.push(new Blower(this, x, floor, 1)); break;
+        case 'N': this.enemies.push(new Magnet(this, x, y)); break;
+        case 'f': this.enemies.push(new Burner(this, x, floor, burners++ * 1100)); break;
+        case 'C': this.enemies.push(new Caterpillar(this, x, floor)); break;
+        case 'T': this.enemies.push(new Target(this, x, floor)); break;
+        case 'D': {
+          const zone = this.add.zone(x, floor - 90, T, 180);
+          this.solids.add(zone);
+          this.doors.push({ zone, img: this.add.image(x, floor, 'door').setOrigin(0.5, 1).setDepth(5), open: false });
           break;
         }
-        case 'P': this.start.set(x, y); break;
-        case 'F': goal = this.physics.add.staticImage(x, y + T * 2 - 22, 'flag'); break;
       }
     }));
+    // Benachbarte Löcher gehören zu einem Bücherwurm
+    holes.sort((a, b) => a.col - b.col);
+    let group: typeof holes = [];
+    for (const h of holes) {
+      if (group.length && h.col - group[group.length - 1].col > 14) { this.enemies.push(new Bookworm(this, group)); group = []; }
+      group.push(h);
+    }
+    if (group.length) this.enemies.push(new Bookworm(this, group));
+    this.checkpoints.sort((a, b) => a.x - b.x);
+  }
 
-    const key = portraitKey(this, this.char);
-    this.player = this.physics.add.sprite(this.start.x, this.start.y, key);
-    const s = 60 / this.player.height; this.player.setScale(s);
-    this.player.body!.setSize(this.player.width * 0.7, this.player.height * 0.95);
-    this.player.setCollideWorldBounds(false).setMaxVelocity(this.char.ability === 'speed' ? 420 : 320, 900);
+  /** Ein einsammelbares Blatt (auch von der Raupe gerettete große Blätter). */
+  addLeaf(img: Phaser.GameObjects.Image, x: number, y: number, value: number) {
+    this.leaves.push({ img, x, y, value, taken: false });
+    if (value === 1) {
+      this.tweens.add({ targets: img, y: y - 5, duration: 900 + (x % 7) * 40, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      this.tweens.add({ targets: img, angle: { from: -9, to: 9 }, duration: 1300 + (x % 5) * 60, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    }
+  }
 
-    this.physics.add.collider(this.player, solids);
-    this.physics.add.collider(this.player, crates, (_p, c) => {
-      if (this.char.ability === 'smash') {
-        const crate = c as Phaser.Physics.Arcade.Image;
-        this.tweens.add({ targets: crate, alpha: 0, scale: 1.4, duration: 150, onComplete: () => crate.destroy() });
-        crate.disableBody();
-      }
-    });
-    this.physics.add.overlap(this.player, coins, (_p, c) => {
-      (c as Phaser.Physics.Arcade.Image).destroy(); this.coins++; this.updateHud();
-    });
-    this.physics.add.overlap(this.player, hazards, () => this.die());
-    this.physics.add.overlap(this.player, enemies, () => this.die());
-    this.physics.add.overlap(this.player, goal, () => this.finish());
-
-    this.cameras.main.startFollow(this.player, true, 0.12, 0.12, -150, 0);
-
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keys = this.input.keyboard!.addKeys('W,A,D,SPACE,ESC') as Record<string, Phaser.Input.Keyboard.Key>;
-    this.keys.ESC.on('down', () => this.scene.start('Menu'));
-
-    this.hud = this.add.text(16, 12, '', { fontFamily: FONT, fontSize: '22px', color: '#fff' }).setScrollFactor(0).setStroke('#000', 4);
-    this.add.text(944, 12, `${level.name} · ${this.char.name}`, { fontFamily: FONT, fontSize: '18px', color: '#fff' })
-      .setOrigin(1, 0).setScrollFactor(0).setStroke('#000', 4);
-    this.createTouchControls();
-    this.startTime = this.time.now;
-    this.updateHud();
+  private createHud() {
+    const fix = <O extends Phaser.GameObjects.Components.ScrollFactor & Phaser.GameObjects.Components.Depth>(o: O) => o.setScrollFactor(0).setDepth(20);
+    fix(this.add.rectangle(480, BAR / 2, 960, BAR, 0x000000));
+    fix(this.add.rectangle(480, BAR, 960, 3, 0x2c2c31));
+    fix(this.add.circle(42, 36, 27, 0x1c1c22).setStrokeStyle(3, 0x6b4426));
+    const face = fix(this.add.image(42, 46, portraitKey(this, this.char)));
+    face.setScale(48 / face.height).setCrop(0, 0, face.width, face.height * 0.55);
+    this.hudLives = [];
+    for (let i = 0; i < 3; i++) this.hudLives.push(fix(this.add.image(100 + i * 46, 38, 'leaf-green').setScale(0.95)));
+    fix(this.add.image(252, 38, 'leaf').setScale(0.8));
+    this.hudLeaves = fix(this.add.text(276, 28, '', { fontFamily: FONT, fontSize: '16px', color: '#ffd23f' }));
+    this.hudTime = fix(this.add.text(450, 28, '', { fontFamily: FONT, fontSize: '16px', color: '#ffffff' }));
+    fix(this.add.text(944, 20, `${levelLabel(this.levelIndex)} · ${this.level.name}`, { fontFamily: FONT, fontSize: '11px', color: '#fff' }).setOrigin(1, 0));
+    fix(this.add.text(944, 42, this.char.name, { fontFamily: FONT, fontSize: '10px', color: '#9a9aa8' }).setOrigin(1, 0));
   }
 
   private createTouchControls() {
     if (!this.sys.game.device.input.touch) return;
-    const mk = (x: number, y: number, label: string, k: keyof typeof this.touch) => {
-      const b = this.add.image(x, y, 'touch').setScrollFactor(0).setInteractive().setDepth(10);
-      this.add.text(x, y, label, { fontFamily: FONT, fontSize: '34px', color: '#fff' }).setOrigin(0.5).setScrollFactor(0).setDepth(11);
+    const mk = (x: number, label: string, k: keyof typeof this.touch) => {
+      const b = this.add.image(x, 478, 'touch').setScrollFactor(0).setInteractive().setDepth(30);
+      this.add.text(x, 478, label, { fontFamily: FONT, fontSize: '20px', color: '#fff' }).setOrigin(0.5).setScrollFactor(0).setDepth(31);
       b.on('pointerdown', () => (this.touch[k] = true));
       b.on('pointerup', () => (this.touch[k] = false));
       b.on('pointerout', () => (this.touch[k] = false));
     };
-    mk(70, 470, '◀', 'left'); mk(180, 470, '▶', 'right'); mk(880, 470, '⤒', 'jump');
+    mk(70, '<', 'left'); mk(180, '>', 'right'); mk(770, 'X', 'attack'); mk(880, '^', 'jump');
   }
 
-  private updateHud() {
-    const t = ((this.time.now - this.startTime) / 1000).toFixed(1);
-    this.hud.setText(`🪙 ${this.coins}   ⏱ ${t}s`);
+  // ------------------------------------------------------------------ Hilfen für Gegner, Tutorial und Bot
+  get leavesCollected() { return this.collected; }
+  get checkpointReached() { return this.checkpointIndex >= 0; }
+
+  solidAt(x: number, y: number) {
+    const ch = this.grid[Math.floor(y / T)]?.[Math.floor(x / T)];
+    return ch !== undefined && (FULL.includes(ch) || (ch === '=' && y % T < 20));
+  }
+  crateAt(x: number, y: number) {
+    return (this.crates.getChildren() as Phaser.Physics.Arcade.Image[]).some(c => c.body?.enable && Math.abs(c.x - x) < 23 && Math.abs(c.y - y) < 23);
+  }
+  onScreen(x: number, margin = 100) { return Math.abs(x - this.cameras.main.midPoint.x) < 480 + margin; }
+
+  enemyDefeated(e: Enemy, x: number, y: number) {
+    const reward = e.reward;
+    this.bonus += reward;
+    this.fx.text(x, y - 10, `+${reward}`);
+    this.tutorial?.defeated.add(e.kind);
+    if (e.kind) { save.defeated[e.kind] = (save.defeated[e.kind] ?? 0) + 1; persist(); }
+    sfx.defeat();
+    this.hitStop(60);
   }
 
-  update() {
+  /** Kurzes Einfrieren bei Treffern – macht Schläge spürbar. */
+  private hitStop(ms: number) {
+    if (this.physics.world.isPaused) return;
+    this.physics.world.pause();
+    this.time.delayedCall(ms, () => { if (!this.done || this.player.lives > 0) this.physics.world.resume(); });
+  }
+
+  // ------------------------------------------------------------------ Spielschleife
+  private controls(time: number): Controls {
+    if (this.done) return NO_CONTROLS;
+    if (this.bot) return botControls(this, time);
+    const k = this.keys, cu = this.cursors, t = this.touch;
+    return {
+      left: cu.left.isDown || k.A.isDown || t.left,
+      right: cu.right.isDown || k.D.isDown || t.right,
+      jump: cu.up.isDown || k.W.isDown || k.SPACE.isDown || t.jump,
+      attack: k.X.isDown || k.J.isDown || t.attack,
+    };
+  }
+
+  update(time: number, delta: number) {
+    const cam = this.cameras.main, p = this.player;
+    this.bg.tilePositionX = cam.scrollX * 0.5;
+    if (this.startTime < 0) this.startTime = time;
+    const dt = Math.min(delta, 34) / 1000;
+    const c = this.controls(time);
+
+    p.windTarget = 0; p.force.set(0, 0);
+    for (const e of this.enemies) if (e.alive) e.update(time, dt);
+    p.update(time, delta, c);
+    if (this.done) { p.stop(); return; }
+
+    cam.followOffset.x = Phaser.Math.Linear(cam.followOffset.x, -p.facing * 90, 0.04);
+    this.checkLeaves(time);
+    this.checkCheckpoints();
+    this.discoverEnemies();
+    this.tutorial?.update(time);
+    this.checkEnemies(time, c);
+    const pr = p.rect();
+    if (this.spikes.some(s => Rect.Overlaps(s, pr))) this.hurt(time, p.x + p.facing * 10);
+    if (p.y > this.grid.length * T + 60) this.fall(time);
+    if (p.x > this.goalX - 60 && p.onGround) this.finish(time);
+
+    Object.assign((window as unknown as { __alx: object }).__alx, { x: Math.round(p.x), y: Math.round(p.y), lives: p.lives, fps: Math.round(this.game.loop.actualFps) });
+    this.hudLeaves.setText(`${this.collected}/${this.total}`);
+    this.hudTime.setText(`ZEIT ${((time - this.startTime) / 1000).toFixed(1)}`);
+  }
+
+  /** Gegner, die zum ersten Mal ins Bild kommen, landen im Lexikon. */
+  private discoverEnemies() {
+    const view = this.cameras.main.worldView;
+    for (const e of this.enemies) {
+      if (e.seen || !e.kind) continue;
+      const at = e.visibleAt();
+      if (!at || !view.contains(at.x, at.y)) continue;
+      e.seen = true;
+      if (save.seen.includes(e.kind)) continue;
+      save.seen.push(e.kind);
+      persist();
+      this.toasts.push(e.kind);
+      this.nextToast();
+    }
+  }
+
+  private nextToast() {
+    if (this.toastBusy || this.done) return;
+    const kind = this.toasts.shift();
+    const info = kind ? beast(kind) : undefined;
+    if (!info) return;
+    this.toastBusy = true;
+    const y = this.tutorial && this.tutorial.y < 300 ? 196 : 112;
+    const box = this.add.rectangle(0, 0, 330, 58, 0x0b0b0d, 0.92).setStrokeStyle(3, 0x5ab0ff);
+    const icon = this.add.image(-130, 0, info.icon);
+    icon.setScale(Math.min(44 / icon.width, 40 / icon.height));
+    const t1 = this.add.text(-96, -14, 'NEU IM LEXIKON', { fontFamily: FONT, fontSize: '9px', color: '#5ab0ff' });
+    const t2 = this.add.text(-96, 2, info.name, { fontFamily: FONT, fontSize: '13px', color: '#ffffff' });
+    const c = this.add.container(960 + 180, y, [box, icon, t1, t2]).setScrollFactor(0).setDepth(27);
+    sfx.checkpoint();
+    this.tweens.add({ targets: c, x: 940 - 165, duration: 300, ease: 'Back.Out' });
+    this.tweens.add({ targets: c, x: 960 + 180, delay: 2400, duration: 260, ease: 'Cubic.In', onComplete: () => {
+      c.destroy(); this.toastBusy = false; this.nextToast();
+    } });
+  }
+
+  private checkLeaves(time: number) {
+    const p = this.player;
+    for (const l of this.leaves) {
+      if (l.taken || Math.abs(l.x - p.x) > 30 || Math.abs(l.y - p.y) > 40) continue;
+      l.taken = true;
+      this.collected += l.value;
+      this.combo = time - this.lastLeafAt < 700 ? this.combo + 1 : 0;
+      this.lastLeafAt = time;
+      sfx.leaf(this.combo);
+      this.fx.burst(l.x, l.y, 0xffe98a, l.value > 1 ? 14 : 5);
+      if (l.value > 1) this.fx.text(l.x, l.y - 20, `+${l.value}`);
+      this.tweens.killTweensOf(l.img);
+      this.tweens.add({ targets: l.img, y: l.img.y - 34, scale: 0.2, alpha: 0, angle: 200, duration: 260, onComplete: () => l.img.destroy() });
+    }
+  }
+
+  private checkCheckpoints() {
+    const p = this.player;
+    this.checkpoints.forEach((cp, i) => {
+      if (cp.active || Math.abs(cp.x - p.x) > 32 || Math.abs(cp.y - 30 - p.y) > 70) return;
+      cp.active = true;
+      this.checkpointIndex = Math.max(this.checkpointIndex, i);
+      const best = this.checkpoints[this.checkpointIndex];
+      this.spawn.set(best.x, best.y - 30);
+      cp.img.setTexture('seed-1');
+      this.tweens.add({ targets: cp.img, scaleX: { from: 0.6, to: 1 }, scaleY: { from: 1.5, to: 1 }, duration: 320, ease: 'Back.Out' });
+      this.fx.leaves(cp.x, cp.y - 40, 8);
+      this.fx.text(cp.x, cp.y - 78, 'Checkpoint!', '#a6e07a');
+      sfx.checkpoint();
+    });
+  }
+
+  /** Karton zertrümmern (Herr Hammer) */
+  private breakCrate(crate: Phaser.Physics.Arcade.Image) {
+    if (!crate.body?.enable) return;
+    crate.disableBody();
+    this.fx.burst(crate.x, crate.y, 0xb8834c, 14);
+    this.fx.burst(crate.x, crate.y, 0xd9c7a0, 6);
+    this.cameras.main.shake(90, 0.006);
+    sfx.bonk();
+    this.tweens.add({ targets: crate, alpha: 0, scale: 1.4, angle: 12, duration: 160, onComplete: () => crate.destroy() });
+  }
+
+  private checkEnemies(time: number, c: Controls) {
+    const p = this.player, pr = p.rect(), atk = p.attackRect(time);
+    if (atk && p.heavy) {
+      for (const crate of this.crates.getChildren() as Phaser.Physics.Arcade.Image[]) {
+        if (Rect.Overlaps(atk, new Rect(crate.x - 22, crate.y - 22, 44, 44))) this.breakCrate(crate);
+      }
+    }
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const hb = e.hitbox();
+      if (!hb) continue;
+      if (atk && e.hittable && e.lastSwing !== p.swingId && Rect.Overlaps(atk, hb)) {
+        e.lastSwing = p.swingId;
+        this.fx.burst(hb.centerX, hb.centerY, 0xffffff, 6);
+        if (p.heavy) { this.cameras.main.shake(110, 0.008); sfx.bonk(); } else this.cameras.main.shake(70, 0.004);
+        e.hit(p.facing, p.heavy ? 2 : 1);
+        continue;
+      }
+      if (!Rect.Overlaps(pr, hb)) continue;
+      const fromAbove = p.body.velocity.y > 80 && p.body.bottom - hb.y < 26;
+      if (fromAbove && e.bouncy) p.bounce(-760);
+      else if (fromAbove && e.stompable) { e.stomp(); p.bounce(c.jump ? -620 : -430); }
+      else if (e.harmful) this.hurt(time, hb.centerX);
+    }
+  }
+
+  private loseLife() {
+    const lost = this.hudLives[this.player.lives];
+    if (lost) {
+      lost.setTexture('leaf-wilt');
+      this.tweens.add({ targets: lost, angle: 35, y: 44, duration: 300, ease: 'Bounce.Out' });
+    }
+    this.cameras.main.shake(180, 0.012);
+    this.cameras.main.flash(120, 255, 80, 80);
+    sfx.hurt();
+    if (this.player.lives <= 0) this.gameOver();
+  }
+
+  private hurt(time: number, fromX: number) {
+    if (this.done || !this.player.hurt(time, fromX)) return;
+    if (this.tutorial) { // im Tutorial gibt es kein „Nachsitzen“
+      this.player.lives = 3;
+      this.cameras.main.flash(120, 255, 80, 80);
+      sfx.hurt();
+      return;
+    }
+    this.fx.burst(this.player.x, this.player.y, 0xff5a5a, 10);
+    this.loseLife();
+  }
+
+  /** Sturz in den Abgrund: ein Leben weg, zurück zum letzten Setzling. */
+  private fall(time: number) {
     if (this.done) return;
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    const left = this.cursors.left.isDown || this.keys.A.isDown || this.touch.left;
-    const right = this.cursors.right.isDown || this.keys.D.isDown || this.touch.right;
-    const jump = this.cursors.up.isDown || this.keys.W.isDown || this.keys.SPACE.isDown || this.touch.jump;
-    const onGround = body.blocked.down || body.touching.down;
-    const speed = this.char.ability === 'speed' ? 420 : 300;
-
-    body.setAccelerationX(0);
-    if (left) { body.setVelocityX(-speed); this.player.setFlipX(true); }
-    else if (right) { body.setVelocityX(speed); this.player.setFlipX(false); }
-    else body.setVelocityX(body.velocity.x * 0.75);
-
-    if (onGround) this.airJumps = this.char.ability === 'doubleJump' ? 1 : 0;
-    const pressed = jump && !this.jumpWasDown;
-    const jumpV = this.char.ability === 'highJump' ? -780 : -640;
-    if (pressed && onGround) body.setVelocityY(jumpV);
-    else if (pressed && this.airJumps > 0) { this.airJumps--; body.setVelocityY(jumpV * 0.9); }
-    if (!jump && body.velocity.y < -200) body.setVelocityY(-200); // kurzer Tipp = kleiner Sprung
-    if (this.char.ability === 'glide' && jump && body.velocity.y > 120) body.setVelocityY(120);
-    this.jumpWasDown = jump;
-
-    if (this.player.y > this.physics.world.bounds.height - 150) this.die();
-    this.updateHud();
+    if (this.tutorial) { sfx.hurt(); this.player.respawn(time, this.spawn.x, this.spawn.y); return; }
+    this.player.lives--;
+    this.loseLife();
+    if (this.player.lives > 0) this.player.respawn(time, this.spawn.x, this.spawn.y);
   }
 
-  private die() {
-    if (this.done) return;
-    this.cameras.main.shake(200, 0.01);
-    this.player.setPosition(this.start.x, this.start.y).setVelocity(0, 0);
+  // ------------------------------------------------------------------ Levelende
+  private panel(titleText: string, body: string) {
+    const fix = (o: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text) => o.setScrollFactor(0).setDepth(40);
+    const x = this.panelX;
+    fix(this.add.rectangle(x, 290, 540, 330, 0x0b0b0d, 0.95).setStrokeStyle(4, 0xffcc33));
+    fix(this.add.text(x, 170, titleText, { fontFamily: FONT, fontSize: '24px', color: '#ffcc33' }).setOrigin(0.5));
+    fix(this.add.text(x, 270, body, { fontFamily: FONT, fontSize: '13px', color: '#fff', align: 'center', lineSpacing: 12 }).setOrigin(0.5));
   }
+  private panelButtons(label: string, action: () => void) {
+    button(this, this.panelX - 125, 395, label, action, 220).setScrollFactor(0).setDepth(41);
+    button(this, this.panelX + 125, 395, 'Level', () => this.scene.start('Levels'), 220).setScrollFactor(0).setDepth(41);
+  }
+  private report(result: string) { (window as unknown as Record<string, unknown>).__alx = { level: this.levelIndex, result: this.bot && result === 'over' ? null : result, retries: this.registry.get('botRetries') ?? 0, lives: this.player.lives, leaves: this.collected, total: this.total }; }
 
-  private finish() {
-    if (this.done) return;
+  private gameOver() {
     this.done = true;
-    this.physics.pause();
-    const time = (this.time.now - this.startTime) / 1000;
-    const reward = this.coins + 20;
-    save.coins += reward;
-    const id = LEVELS[0].id;
+    this.physics.world.pause();
+    sfx.over();
+    this.report('over');
+    this.panel('Nachsitzen!', 'Alle Leben verloren.\nEs geht am letzten Setzling weiter.');
+    this.panelButtons('Nochmal', () => this.scene.restart({ level: this.levelIndex, checkpoint: this.checkpointIndex }));
+    if (this.bot) {
+      this.registry.inc('botRetries');
+      this.time.delayedCall(800, () => this.scene.restart({ level: this.levelIndex, checkpoint: this.checkpointIndex }));
+    }
+  }
+
+  /** Ziel erreicht: Die gesammelten Blätter fliegen in die Krone und der Ginkgo wird golden. */
+  private finish(time: number) {
+    this.done = true;
+    this.tutorial?.hide();
+    const seconds = (time - this.startTime) / 1000;
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    cam.pan(this.goalX - 230, cam.midPoint.y, 500, 'Sine.easeInOut');
+    this.panelX = 310;
+    const n = Math.min(this.collected, 36);
+    const share = this.total ? this.collected / this.total : 0;
+    for (let i = 0; i < n; i++) {
+      this.time.delayedCall(250 + i * 45, () => {
+        const leaf = this.add.image(cam.scrollX + 252, cam.scrollY + 36, 'leaf').setScale(0.6).setDepth(18);
+        const tx = this.goalX - 66 + Math.random() * 132, ty = 405 - 234 + 12 + Math.random() * 84;
+        this.tweens.add({ targets: leaf, x: tx, duration: 620, ease: 'Sine.InOut' });
+        this.tweens.add({ targets: leaf, y: ty, angle: 360, duration: 620, ease: 'Back.In', onComplete: () => {
+          sfx.leaf(i % 14);
+          this.treeGold.setAlpha(Math.min(1, ((i + 1) / n) * share * 1.15));
+          this.fx.burst(tx, ty, 0xffe98a, 2);
+          leaf.destroy();
+        } });
+      });
+    }
+    this.time.delayedCall(450 + n * 45 + 650, () => this.showResult(seconds));
+  }
+
+  private showResult(seconds: number) {
+    const all = this.collected >= this.total;
+    if (all) this.fx.leaves(this.goalX, 230, 30);
+    sfx.win();
+    const reward = this.collected + this.bonus + this.player.lives * 5;
+    const id = this.level.id;
+    const fromCheckpoint = this.startCheckpoint >= 0; // nach „Nachsitzen“ zählt die Zeit nicht als Bestzeit
     const best = save.bestTimes[id];
-    const newBest = !best || time < best;
-    if (newBest) save.bestTimes[id] = time;
+    const newBest = !fromCheckpoint && (!best || seconds < best);
+    if (newBest) save.bestTimes[id] = seconds;
+    save.bestLeaves[id] = Math.max(save.bestLeaves[id] ?? 0, this.collected);
+    save.progress = Math.max(save.progress, 1, Math.min(this.levelIndex + 1, LEVELS.length - 1));
+    save.coins += reward;
     persist();
-    this.add.rectangle(480, 270, 520, 300, 0x1b1f3b, 0.92).setScrollFactor(0).setStrokeStyle(4, 0xffcc33);
-    this.add.text(480, 175, '🎓 Geschafft!', { fontFamily: FONT, fontSize: '40px', color: '#ffcc33' }).setOrigin(0.5).setScrollFactor(0);
-    this.add.text(480, 250, `Zeit: ${time.toFixed(1)}s${newBest ? '  (Bestzeit!)' : ''}\n+${reward} ALX-Taler`,
-      { fontFamily: FONT, fontSize: '24px', color: '#fff', align: 'center' }).setOrigin(0.5).setScrollFactor(0);
-    button(this, 360, 350, 'Nochmal', () => this.scene.restart(), 200).setScrollFactor(0);
-    button(this, 600, 350, 'Menü', () => this.scene.start('Menu'), 200).setScrollFactor(0);
+    this.report('win');
+    this.panel(all ? 'Der Ginkgo leuchtet!' : 'Geschafft!', [
+      `Blätter: ${this.collected}/${this.total}${all ? '  ALLE!' : ''}`,
+      fromCheckpoint ? `Zeit: ${seconds.toFixed(1)}s (ab Setzling)` : `Zeit: ${seconds.toFixed(1)}s${newBest ? '  BESTZEIT!' : ''}`,
+      `+${reward} Ginkgo-Taler`,
+    ].join('\n'));
+    const next = this.levelIndex + 1 < LEVELS.length;
+    this.panelButtons(next ? 'Weiter' : 'Nochmal', () => this.scene.restart({ level: next ? this.levelIndex + 1 : this.levelIndex }));
   }
 }

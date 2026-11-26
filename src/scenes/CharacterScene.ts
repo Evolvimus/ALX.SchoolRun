@@ -1,13 +1,14 @@
 import Phaser from 'phaser';
-import { backButton, card, FONT, title } from './ui';
+import { backButton, card, FONT, title, menuBackground } from './ui';
 import { ALL_CHARACTERS, ABILITY_LABEL, RARITY_LABEL } from '../data/characters';
 import { persist, save } from '../services/save';
 
 export class CharacterScene extends Phaser.Scene {
   constructor() { super('Characters'); }
   create() {
+    menuBackground(this);
     title(this, 'Sammelalbum', 36);
-    const info = this.add.text(560, 500, 'Tippe einen freigeschalteten Charakter an', { fontFamily: FONT, fontSize: '18px', color: '#fff' }).setOrigin(0.5);
+    const info = this.add.text(560, 500, 'Tippe einen freigeschalteten Charakter an', { fontFamily: FONT, fontSize: '11px', color: '#fff' }).setOrigin(0.5);
     ALL_CHARACTERS.forEach((c, i) => {
       const x = 75 + (i % 11) * 82, y = 160 + Math.floor(i / 11) * 165;
       const unlocked = save.unlocked.includes(c.id);

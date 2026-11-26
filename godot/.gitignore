@@ -1,0 +1,4 @@
+.godot/
+build/
+config/backend.cfg
+*.tmp
