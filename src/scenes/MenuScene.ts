@@ -4,6 +4,7 @@ import { save } from '../services/save';
 import { getCharacter } from '../data/characters';
 import { isTestMode } from '../services/backend';
 import { sfx } from '../services/audio';
+import { BESTIARY } from '../data/bestiary';
 
 export class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
@@ -17,20 +18,23 @@ export class MenuScene extends Phaser.Scene {
     }
     menuBackground(this);
     // Fallende Ginkgoblätter
-    this.add.particles(0, 0, 'leaf-s', {
+    this.add.particles(0, 0, 'leaf', {
       x: { min: 0, max: 960 }, y: -20, lifespan: 9000, speedY: { min: 45, max: 90 }, speedX: { min: -30, max: 30 },
-      rotate: { start: 0, end: 360 }, scale: { min: 0.7, max: 1.3 }, alpha: { min: 0.5, max: 0.95 }, frequency: 420,
+      rotate: { start: 0, end: 360 }, scale: { min: 0.45, max: 0.8 }, alpha: { min: 0.5, max: 0.95 }, frequency: 420,
     });
 
-    this.add.image(176, 104, 'leaf-logo').setAngle(-14).setScale(0.75);
+    this.add.image(112, 88, 'leaf-logo').setAngle(-12).setScale(0.72);
     this.add.text(520, 80, 'ALX SchoolRun', { fontFamily: FONT, fontSize: '40px', color: '#ffcc33', fontStyle: 'bold' })
       .setOrigin(0.5).setStroke('#000', 8);
     this.add.text(520, 132, 'Bring dem alten Ginkgo seine goldenen Blätter zurück!', { fontFamily: FONT, fontSize: '11px', color: '#fff' }).setOrigin(0.5);
 
-    button(this, 480, 220, 'Spielen', () => this.scene.start('Levels'));
-    button(this, 480, 290, 'Charaktere', () => this.scene.start('Characters'));
-    button(this, 480, 360, 'Code einlösen', () => this.scene.start('Redeem'));
-    button(this, 480, 430, 'Lehrerzimmer-Shop', () => this.scene.start('Shop'));
+    // Wer noch nie gespielt hat, startet direkt im Tutorial
+    const tutorialDone = save.bestTimes['tutorial'] !== undefined;
+    button(this, 480, 196, 'Spielen', () => this.scene.start(tutorialDone ? 'Levels' : 'Game', { level: 0 }), 320, 48);
+    button(this, 480, 252, 'Charaktere', () => this.scene.start('Characters'), 320, 48);
+    button(this, 480, 308, `Gegner-Lexikon  ${save.seen.length}/${BESTIARY.length}`, () => this.scene.start('Lexikon'), 320, 48);
+    button(this, 480, 364, 'Code einlösen', () => this.scene.start('Redeem'), 320, 48);
+    button(this, 480, 420, 'Lehrerzimmer-Shop', () => this.scene.start('Shop'), 320, 48);
 
     const c = getCharacter(save.selected);
     const img = this.add.image(800, 330, portraitKey(this, c));

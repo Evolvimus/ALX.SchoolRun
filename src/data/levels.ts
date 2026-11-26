@@ -4,15 +4,34 @@
 // Ginkgo:   c Blatt   S Setzling (Checkpoint)   F großer Ginkgo (Ziel)   C großes Blatt mit Raupe
 // Gegner:   m Staubmaus   e Papierflieger-Schwarm   w Wurmloch (benachbarte Löcher = ein Bücherwurm)
 //           o Basketball  < > Laubbläser (bläst nach links/rechts)   N Magnet   f Bunsenbrenner
-// Sonst:    P Start
+// Sonst:    P Start   T Übungsscheibe   D Tür (öffnet sich, wenn eine Tutorial-Aufgabe erledigt ist)
 //
 // Alles, was „steht“ (S F C f < > w), kommt in die Zelle direkt über seiner Standfläche.
+/**
+ * Eine Tutorial-Aufgabe. Sie erscheint, sobald man Spalte `at` erreicht, und ist erledigt, wenn `done` erfüllt ist.
+ * Platzhalter im Text: {LAUFEN} {SPRINGEN} {HIEB} werden je nach Gerät durch Tasten oder Buttons ersetzt.
+ */
+export interface TutorialStep {
+  at: number;
+  text: string;
+  done:
+    | { type: 'col'; col: number }          // Spalte erreicht
+    | { type: 'leaves'; count: number }     // so viele Blätter gesammelt
+    | { type: 'checkpoint' }                // Setzling berührt
+    | { type: 'defeat'; kind: string }      // Gegner dieser Art besiegt ('' = Übungsscheibe)
+    | { type: 'timer'; ms: number }         // nur lesen
+    | { type: 'goal' };                     // Ziel erreicht
+  /** Öffnet nach dem Erledigen die nächste Tür */
+  opensDoor?: boolean;
+}
+
 export interface Level {
   id: string;
   name: string;
   bg: string;
   map: string[];
   hints: [col: number, row: number, text: string][];
+  tutorial?: TutorialStep[];
 }
 
 type Item = [string, number, number];
@@ -32,6 +51,32 @@ const line = (ch: string, from: number, to: number, row: number): Item[] =>
 const at = (ch: string, ...cells: [number, number][]): Item[] => cells.map(([c, r]) => [ch, c, r]);
 
 export const LEVELS: Level[] = [{
+  id: 'tutorial',
+  name: 'Erster Schultag',
+  bg: 'bg-school',
+  hints: [],
+  tutorial: [
+    { at: 0, text: 'Willkommen am ALX!\nLaufe mit {LAUFEN} nach rechts.', done: { type: 'col', col: 6 } },
+    { at: 5, text: 'Spring mit {SPRINGEN} über die Lücke.', done: { type: 'col', col: 12 } },
+    { at: 12, text: 'Halte {SPRINGEN} gedrückt:\nJe länger, desto höher springst du.', done: { type: 'col', col: 18 } },
+    { at: 18, text: 'Sammle die goldenen Ginkgoblätter!', done: { type: 'leaves', count: 9 } },
+    { at: 27, text: 'Ein Setzling! Lauf hindurch:\nNach einem Sturz geht es hier weiter.', done: { type: 'checkpoint' } },
+    { at: 30, text: 'Schlag die Übungsscheibe mit dem Lineal: {HIEB}', done: { type: 'defeat', kind: '' }, opensDoor: true },
+    { at: 36, text: 'Eine Staubmaus!\nSpring drauf oder schlag mit {HIEB} zu.', done: { type: 'defeat', kind: 'mouse' }, opensDoor: true },
+    { at: 46, text: 'Jeden neuen Gegner findest du\nim Gegner-Lexikon im Menü.', done: { type: 'timer', ms: 3500 } },
+    { at: 49, text: 'Blaue Turnmatten federn dich hoch!', done: { type: 'col', col: 58 } },
+    { at: 58, text: 'Bring deine Blätter zum großen Ginkgo!', done: { type: 'goal' } },
+  ],
+  map: build(68, [[9, 10]], [
+    ['P', 2, 8], ['c', 9, 6], ['c', 10, 6],
+    ...at('R', [16, 8], [16, 7], [17, 8], [17, 7]),
+    ...at('c', [20, 8], [21, 8], [22, 8], [23, 7], [24, 6], [25, 7], [26, 8]),
+    ['S', 29, 8], ['T', 33, 8], ['D', 35, 8],
+    ['m', 41, 8], ['D', 46, 8],
+    ['M', 52, 8], ...line('=', 54, 57, 4), ...line('c', 54, 57, 3),
+    ['F', 63, 8],
+  ]),
+}, {
   id: 'klassenzimmer',
   name: 'Klassenzimmer',
   bg: 'bg-school',
@@ -125,6 +170,9 @@ export const LEVELS: Level[] = [{
     ['F', 133, 8],
   ]),
 }];
+
+/** Anzeige-Name: „Tutorial“ oder die Levelnummer. */
+export const levelLabel = (i: number) => (LEVELS[i]?.tutorial ? 'Tutorial' : String(i));
 
 /** Wie viele Blätter es im Level insgesamt zu holen gibt. */
 export function countLeaves(level: Level): number {

@@ -8,6 +8,10 @@ export interface SaveData {
   bestLeaves: Record<string, number>;
   progress: number; // höchstes freigeschaltetes Level (Index)
   muted: boolean;
+  /** Gegner, die man schon gesehen hat (Gegner-Lexikon) */
+  seen: string[];
+  /** Wie oft welcher Gegner besiegt wurde */
+  defeated: Record<string, number>;
 }
 const KEY = 'alx-schoolrun-save-v1';
 
@@ -26,7 +30,7 @@ function load(): SaveData {
   return fresh();
 }
 function fresh(): SaveData {
-  return { playerId: uuid(), unlocked: ['schueler'], selected: 'schueler', coins: 0, bestTimes: {}, bestLeaves: {}, progress: 0, muted: false };
+  return { playerId: uuid(), unlocked: ['schueler'], selected: 'schueler', coins: 0, bestTimes: {}, bestLeaves: {}, progress: 1, muted: false, seen: [], defeated: {} };
 }
 
 export const save: SaveData = load();

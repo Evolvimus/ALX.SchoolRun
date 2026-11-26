@@ -52,14 +52,31 @@ function darken(c: number, f = 0.7) {
   return (Math.floor(r * f) << 16) | (Math.floor(gg * f) << 8) | Math.floor(b * f);
 }
 
-// Ginkgoblatt: breiter Fächer mit Schlitz in der Mitte und langem Stiel
+// Ginkgoblatt: breiter Fächer mit flachem Bogen oben, Kerbe in der Mitte,
+// strahlenförmigen Adern und langem Stiel – das Schullogo.
 const LEAF = [
-  '.wwwww.wwwww.', 'wyyyyy.yyyyyw', 'yyyyyydyyyyyy', 'yydyyydyyydyy', '.yydyydyydyy.', '..yydydydyy..',
-  '...yydddyy...', '....yydyy....', '.....ydy.....', '......s......', '......s......', '.....ss......',
+  '.....ooooo.ooooo.....',
+  '..ooollllo.ollllooo..',
+  '.olllyyddo.oddyylllo.',
+  'olwwddwydyoydyyddyylo',
+  'odwwwdwydylydyydyyyyo',
+  'oddyyddydyyydyddyyddo',
+  '.oddyyddydyddydyyddo.',
+  '..ooddydydydydyydoo..',
+  '....oommmmmmmmmoo....',
+  '......oommmmmoo......',
+  '........ommmo........',
+  '.........ooo.........',
+  '..........s..........',
+  '..........s..........',
+  '..........s..........',
+  '...........s.........',
+  '...........s.........',
+  '............s........',
 ];
-const GOLD = { y: 0xffc928, w: 0xffe98a, d: 0xd99a00, s: 0x8a6a1a };
-const GREEN = { y: 0x6cc04a, w: 0xa6e07a, d: 0x3f8f2e, s: 0x4a6a1a };
-const WILT = { y: 0x5e5038, w: 0x6f6046, d: 0x40351f, s: 0x3a2f1c };
+const GOLD = { o: 0x6e3e00, d: 0xe8a414, y: 0xffc626, l: 0xffde68, m: 0xeea816, w: 0xfff2b0, s: 0x6e5012 };
+const GREEN = { o: 0x1c4612, d: 0x4f9a2e, y: 0x6cc04a, l: 0x9ee07a, m: 0x58a83a, w: 0xd2f5b0, s: 0x3a5a1a };
+const WILT = { o: 0x2a2116, d: 0x4a3d28, y: 0x5e5038, l: 0x6f6046, m: 0x54472f, w: 0x7d6e52, s: 0x3a2f1c };
 
 export function makePixelTextures(scene: Phaser.Scene) {
   const g = scene.add.graphics();
@@ -75,11 +92,11 @@ export function makePixelTextures(scene: Phaser.Scene) {
   gen('ruler', 16, 3, () => { px(g, 0, 0, 16, 3, 0xffd23f); px(g, 0, 2, 16, 1, 0xc99a14); for (let i = 1; i < 16; i += 2) px(g, i, 0, 1, i % 4 === 1 ? 2 : 1, 0x6b4a00); });
 
   // ---- Ginkgo: Schullogo als roter Faden ----
-  gen('leaf', 13, 12, () => sprite(g, LEAF, GOLD));
-  gen('leaf-s', 13, 12, () => sprite(g, LEAF, GOLD), 2);
-  gen('leaf-green', 13, 12, () => sprite(g, LEAF, GREEN));
-  gen('leaf-wilt', 13, 12, () => sprite(g, LEAF, WILT));
-  gen('leaf-logo', 13, 12, () => sprite(g, LEAF, GOLD), 8);
+  gen('leaf', 21, 18, () => sprite(g, LEAF, GOLD), 2);
+  gen('leaf-s', 21, 18, () => sprite(g, LEAF, GOLD), 1);
+  gen('leaf-green', 21, 18, () => sprite(g, LEAF, GREEN), 2);
+  gen('leaf-wilt', 21, 18, () => sprite(g, LEAF, WILT), 2);
+  gen('leaf-logo', 21, 18, () => sprite(g, LEAF, GOLD), 6);
   const pot = () => { px(g, 3, 15, 9, 2, 0xd9764a); px(g, 4, 17, 7, 5, 0xb5522e); px(g, 4, 17, 1, 5, 0x8f3f22); px(g, 5, 15, 5, 1, 0x3a2a1a); };
   gen('seed-0', 15, 22, () => { pot(); px(g, 7, 12, 1, 3, 0x4a8a2e); px(g, 6, 11, 1, 1, 0x6cc04a); px(g, 8, 12, 1, 1, 0x6cc04a); });
   gen('seed-1', 15, 22, () => {
@@ -99,7 +116,10 @@ export function makePixelTextures(scene: Phaser.Scene) {
     crown.forEach(([x, y, r]) => blob(g, x, y + 1, r, 0xc98f10));
     crown.forEach(([x, y, r]) => blob(g, x, y, r - 1, 0xf2b61c));
     crown.forEach(([x, y, r]) => blob(g, x - 2, y - 2, Math.max(2, r - 4), 0xffd84a));
-    for (let i = 0; i < 70; i++) px(g, 6 + (i * 29) % 52, 3 + (i * 17) % 34, 1, 1, i % 2 ? 0xfff0a0 : 0xd99a00);
+    for (let i = 0; i < 90; i++) {
+      const x = 4 + ((i * 37) % 56), y = 2 + ((i * 23 + (i >> 2) * 7) % 36);
+      if (crown.some(([cx, cy, r]) => (x - cx) ** 2 + (y - cy) ** 2 < (r - 1.5) ** 2)) px(g, x, y, 1, 1, i % 2 ? 0xfff0a0 : 0xd99a00);
+    }
   };
   gen('tree-bare', 64, 78, () => tree(false));
   gen('tree-gold', 64, 78, () => tree(true));
@@ -185,6 +205,24 @@ export function makePixelTextures(scene: Phaser.Scene) {
   gen('cat-0', 10, 5, () => sprite(g, ['..........', 'kk.gg.gg..', 'kwggdggdgg', 'kkggggdggg', '.d..d..d.d'], CAT));
   gen('cat-1', 10, 5, () => sprite(g, ['....gg....', 'kk.gddg...', 'kwgg..gggg', 'kkgg..dggg', '.d.d...d.d'], CAT));
   gen('ball', 8, 8, () => sprite(g, ['..oooo..', '.ookooo.', 'oookoooo', 'kkkkkkkk', 'oookoooo', 'oookoooo', '.ookooo.', '..oooo..'], { o: 0xe8742a, k: 0x5a2a0c }));
+
+  // Übungsscheibe auf Holzständer
+  gen('target', 15, 22, () => {
+    px(g, 6, 13, 3, 8, 0x8f5a2e); px(g, 3, 20, 9, 2, 0x6b4426);
+    blob(g, 7, 7, 7, 0x6e3e00); blob(g, 7, 7, 6, 0xf4f4f4); blob(g, 7, 7, 4, 0xd23b3b); blob(g, 7, 7, 2, 0xf4f4f4); px(g, 6, 6, 3, 3, 0xd23b3b);
+  });
+  // Klassenzimmertür (4 Kacheln hoch), mit Ginkgo-Aufkleber und Schloss-Lampe
+  const door = (open: boolean) => {
+    px(g, 0, 0, 15, 60, 0x4a2c17); px(g, 1, 1, 13, 59, 0x8f5a2e); px(g, 1, 1, 1, 59, 0xa8703f);
+    px(g, 3, 6, 9, 14, 0x2a1a0e); px(g, 4, 7, 7, 12, 0xbfe6ff); px(g, 4, 7, 7, 2, 0xe3f4ff);
+    sprite(g, ['.y.y.', 'yyyyy', '.yyy.', '..y..', '..s..'], { y: 0xffc626, s: 0x6e5012 }, 5, 10);
+    px(g, 3, 26, 9, 12, 0x7a4b2a); px(g, 3, 42, 9, 12, 0x7a4b2a);
+    px(g, 11, 33, 2, 3, 0xd9c060);
+    px(g, 6, 2, 3, 3, open ? 0x5be05b : 0xff3b3b);
+  };
+  gen('door', 15, 60, () => door(false));
+  gen('door-open', 15, 60, () => door(true));
+  gen('check', 9, 7, () => sprite(g, ['........#', '.......##', '#.....##.', '##...##..', '.##.##...', '..###....', '...#.....'], { '#': 0x6cff6c }));
 
   // ---- Effekte / Bedienung ----
   gen('dot', 1, 1, () => px(g, 0, 0, 1, 1, 0xffffff));

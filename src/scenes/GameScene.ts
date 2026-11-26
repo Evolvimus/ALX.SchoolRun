@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
-import { LEVELS, Level, countLeaves } from '../data/levels';
+import { LEVELS, Level, countLeaves, levelLabel } from '../data/levels';
+import { beast } from '../data/bestiary';
 import { getCharacter, Character } from '../data/characters';
 import { persist, save } from '../services/save';
 import { sfx } from '../services/audio';
 import { button, FONT, portraitKey } from './ui';
 import { Controls, NO_CONTROLS, Player } from '../game/Player';
 import { Fx } from '../game/fx';
-import { Ball, Blower, Bookworm, Burner, Caterpillar, DustMouse, Enemy, Magnet, Plane } from '../game/enemies';
+import { Ball, Blower, Bookworm, Burner, Caterpillar, DustMouse, Enemy, Magnet, Plane, Target } from '../game/enemies';
+import { Door, Tutorial } from '../game/tutorial';
 import { botControls } from '../game/bot';
 
 const T = 45;
@@ -46,6 +48,10 @@ export class GameScene extends Phaser.Scene {
   private bot = false;
   private panelX = 480;
   private bg!: Phaser.GameObjects.TileSprite;
+  private tutorial: Tutorial | null = null;
+  private doors: Door[] = [];
+  private toasts: string[] = [];
+  private toastBusy = false;
   private hudLives: Phaser.GameObjects.Image[] = [];
   private hudLeaves!: Phaser.GameObjects.Text;
   private hudTime!: Phaser.GameObjects.Text;
@@ -62,7 +68,7 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ Aufbau
   create() {
-    this.enemies = []; this.spikes = []; this.leaves = []; this.checkpoints = [];
+    this.enemies = []; this.spikes = []; this.leaves = []; this.checkpoints = []; this.doors = []; this.toasts = []; this.toastBusy = false;
     this.collected = this.bonus = this.combo = 0;
     this.done = false; this.startTime = -1; this.checkpointIndex = -1; this.panelX = 480;
     this.touch = { left: false, right: false, jump: false, attack: false };
@@ -120,6 +126,7 @@ export class GameScene extends Phaser.Scene {
 
     this.createHud();
     this.createTouchControls();
+    this.tutorial = level.tutorial ? new Tutorial(this, level.tutorial, this.doors, this.sys.game.device.input.touch) : null;
     (window as unknown as Record<string, unknown>).__alx = { level: this.levelIndex, result: null };
   }
 
@@ -173,6 +180,13 @@ export class GameScene extends Phaser.Scene {
         case 'N': this.enemies.push(new Magnet(this, x, y)); break;
         case 'f': this.enemies.push(new Burner(this, x, floor, burners++ * 1100)); break;
         case 'C': this.enemies.push(new Caterpillar(this, x, floor)); break;
+        case 'T': this.enemies.push(new Target(this, x, floor)); break;
+        case 'D': {
+          const zone = this.add.zone(x, floor - 90, T, 180);
+          this.solids.add(zone);
+          this.doors.push({ zone, img: this.add.image(x, floor, 'door').setOrigin(0.5, 1).setDepth(5), open: false });
+          break;
+        }
       }
     }));
     // Benachbarte Löcher gehören zu einem Bücherwurm
@@ -203,11 +217,11 @@ export class GameScene extends Phaser.Scene {
     const face = fix(this.add.image(42, 46, portraitKey(this, this.char)));
     face.setScale(48 / face.height).setCrop(0, 0, face.width, face.height * 0.55);
     this.hudLives = [];
-    for (let i = 0; i < 3; i++) this.hudLives.push(fix(this.add.image(102 + i * 40, 36, 'leaf-green')));
-    fix(this.add.image(256, 36, 'leaf').setScale(0.85));
-    this.hudLeaves = fix(this.add.text(278, 28, '', { fontFamily: FONT, fontSize: '16px', color: '#ffd23f' }));
+    for (let i = 0; i < 3; i++) this.hudLives.push(fix(this.add.image(100 + i * 46, 38, 'leaf-green').setScale(0.95)));
+    fix(this.add.image(252, 38, 'leaf').setScale(0.8));
+    this.hudLeaves = fix(this.add.text(276, 28, '', { fontFamily: FONT, fontSize: '16px', color: '#ffd23f' }));
     this.hudTime = fix(this.add.text(450, 28, '', { fontFamily: FONT, fontSize: '16px', color: '#ffffff' }));
-    fix(this.add.text(944, 20, `${this.levelIndex + 1} · ${this.level.name}`, { fontFamily: FONT, fontSize: '11px', color: '#fff' }).setOrigin(1, 0));
+    fix(this.add.text(944, 20, `${levelLabel(this.levelIndex)} · ${this.level.name}`, { fontFamily: FONT, fontSize: '11px', color: '#fff' }).setOrigin(1, 0));
     fix(this.add.text(944, 42, this.char.name, { fontFamily: FONT, fontSize: '10px', color: '#9a9aa8' }).setOrigin(1, 0));
   }
 
@@ -223,7 +237,10 @@ export class GameScene extends Phaser.Scene {
     mk(70, '<', 'left'); mk(180, '>', 'right'); mk(770, 'X', 'attack'); mk(880, '^', 'jump');
   }
 
-  // ------------------------------------------------------------------ Hilfen für Gegner und Bot
+  // ------------------------------------------------------------------ Hilfen für Gegner, Tutorial und Bot
+  get leavesCollected() { return this.collected; }
+  get checkpointReached() { return this.checkpointIndex >= 0; }
+
   solidAt(x: number, y: number) {
     const ch = this.grid[Math.floor(y / T)]?.[Math.floor(x / T)];
     return ch !== undefined && (FULL.includes(ch) || (ch === '=' && y % T < 20));
@@ -233,9 +250,12 @@ export class GameScene extends Phaser.Scene {
   }
   onScreen(x: number, margin = 100) { return Math.abs(x - this.cameras.main.midPoint.x) < 480 + margin; }
 
-  enemyDefeated(x: number, y: number, reward: number) {
+  enemyDefeated(e: Enemy, x: number, y: number) {
+    const reward = e.reward;
     this.bonus += reward;
     this.fx.text(x, y - 10, `+${reward}`);
+    this.tutorial?.defeated.add(e.kind);
+    if (e.kind) { save.defeated[e.kind] = (save.defeated[e.kind] ?? 0) + 1; persist(); }
     sfx.defeat();
     this.hitStop(60);
   }
@@ -275,6 +295,8 @@ export class GameScene extends Phaser.Scene {
     cam.followOffset.x = Phaser.Math.Linear(cam.followOffset.x, -p.facing * 90, 0.04);
     this.checkLeaves(time);
     this.checkCheckpoints();
+    this.discoverEnemies();
+    this.tutorial?.update(time);
     this.checkEnemies(time, c);
     const pr = p.rect();
     if (this.spikes.some(s => Rect.Overlaps(s, pr))) this.hurt(time, p.x + p.facing * 10);
@@ -284,6 +306,42 @@ export class GameScene extends Phaser.Scene {
     Object.assign((window as unknown as { __alx: object }).__alx, { x: Math.round(p.x), y: Math.round(p.y), lives: p.lives, fps: Math.round(this.game.loop.actualFps) });
     this.hudLeaves.setText(`${this.collected}/${this.total}`);
     this.hudTime.setText(`ZEIT ${((time - this.startTime) / 1000).toFixed(1)}`);
+  }
+
+  /** Gegner, die zum ersten Mal ins Bild kommen, landen im Lexikon. */
+  private discoverEnemies() {
+    const view = this.cameras.main.worldView;
+    for (const e of this.enemies) {
+      if (e.seen || !e.kind) continue;
+      const at = e.visibleAt();
+      if (!at || !view.contains(at.x, at.y)) continue;
+      e.seen = true;
+      if (save.seen.includes(e.kind)) continue;
+      save.seen.push(e.kind);
+      persist();
+      this.toasts.push(e.kind);
+      this.nextToast();
+    }
+  }
+
+  private nextToast() {
+    if (this.toastBusy || this.done) return;
+    const kind = this.toasts.shift();
+    const info = kind ? beast(kind) : undefined;
+    if (!info) return;
+    this.toastBusy = true;
+    const y = this.tutorial && this.tutorial.y < 300 ? 196 : 112;
+    const box = this.add.rectangle(0, 0, 330, 58, 0x0b0b0d, 0.92).setStrokeStyle(3, 0x5ab0ff);
+    const icon = this.add.image(-130, 0, info.icon);
+    icon.setScale(Math.min(44 / icon.width, 40 / icon.height));
+    const t1 = this.add.text(-96, -14, 'NEU IM LEXIKON', { fontFamily: FONT, fontSize: '9px', color: '#5ab0ff' });
+    const t2 = this.add.text(-96, 2, info.name, { fontFamily: FONT, fontSize: '13px', color: '#ffffff' });
+    const c = this.add.container(960 + 180, y, [box, icon, t1, t2]).setScrollFactor(0).setDepth(27);
+    sfx.checkpoint();
+    this.tweens.add({ targets: c, x: 940 - 165, duration: 300, ease: 'Back.Out' });
+    this.tweens.add({ targets: c, x: 960 + 180, delay: 2400, duration: 260, ease: 'Cubic.In', onComplete: () => {
+      c.destroy(); this.toastBusy = false; this.nextToast();
+    } });
   }
 
   private checkLeaves(time: number) {
@@ -343,7 +401,7 @@ export class GameScene extends Phaser.Scene {
     const lost = this.hudLives[this.player.lives];
     if (lost) {
       lost.setTexture('leaf-wilt');
-      this.tweens.add({ targets: lost, angle: 35, y: 42, duration: 300, ease: 'Bounce.Out' });
+      this.tweens.add({ targets: lost, angle: 35, y: 44, duration: 300, ease: 'Bounce.Out' });
     }
     this.cameras.main.shake(180, 0.012);
     this.cameras.main.flash(120, 255, 80, 80);
@@ -353,6 +411,12 @@ export class GameScene extends Phaser.Scene {
 
   private hurt(time: number, fromX: number) {
     if (this.done || !this.player.hurt(time, fromX)) return;
+    if (this.tutorial) { // im Tutorial gibt es kein „Nachsitzen“
+      this.player.lives = 3;
+      this.cameras.main.flash(120, 255, 80, 80);
+      sfx.hurt();
+      return;
+    }
     this.fx.burst(this.player.x, this.player.y, 0xff5a5a, 10);
     this.loseLife();
   }
@@ -360,6 +424,7 @@ export class GameScene extends Phaser.Scene {
   /** Sturz in den Abgrund: ein Leben weg, zurück zum letzten Setzling. */
   private fall(time: number) {
     if (this.done) return;
+    if (this.tutorial) { sfx.hurt(); this.player.respawn(time, this.spawn.x, this.spawn.y); return; }
     this.player.lives--;
     this.loseLife();
     if (this.player.lives > 0) this.player.respawn(time, this.spawn.x, this.spawn.y);
@@ -395,6 +460,7 @@ export class GameScene extends Phaser.Scene {
   /** Ziel erreicht: Die gesammelten Blätter fliegen in die Krone und der Ginkgo wird golden. */
   private finish(time: number) {
     this.done = true;
+    this.tutorial?.hide();
     const seconds = (time - this.startTime) / 1000;
     const cam = this.cameras.main;
     cam.stopFollow();
@@ -404,7 +470,7 @@ export class GameScene extends Phaser.Scene {
     const share = this.total ? this.collected / this.total : 0;
     for (let i = 0; i < n; i++) {
       this.time.delayedCall(250 + i * 45, () => {
-        const leaf = this.add.image(cam.scrollX + 256, cam.scrollY + 36, 'leaf-s').setDepth(18);
+        const leaf = this.add.image(cam.scrollX + 252, cam.scrollY + 36, 'leaf').setScale(0.6).setDepth(18);
         const tx = this.goalX - 66 + Math.random() * 132, ty = 405 - 234 + 12 + Math.random() * 84;
         this.tweens.add({ targets: leaf, x: tx, duration: 620, ease: 'Sine.InOut' });
         this.tweens.add({ targets: leaf, y: ty, angle: 360, duration: 620, ease: 'Back.In', onComplete: () => {
@@ -429,7 +495,7 @@ export class GameScene extends Phaser.Scene {
     const newBest = !fromCheckpoint && (!best || seconds < best);
     if (newBest) save.bestTimes[id] = seconds;
     save.bestLeaves[id] = Math.max(save.bestLeaves[id] ?? 0, this.collected);
-    save.progress = Math.max(save.progress, Math.min(this.levelIndex + 1, LEVELS.length - 1));
+    save.progress = Math.max(save.progress, 1, Math.min(this.levelIndex + 1, LEVELS.length - 1));
     save.coins += reward;
     persist();
     this.report('win');

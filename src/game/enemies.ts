@@ -8,7 +8,10 @@ type Rect = Phaser.Geom.Rectangle;
 const approach = (v: number, target: number, step: number) => (v < target ? Math.min(v + step, target) : Math.max(v - step, target));
 
 export abstract class Enemy {
+  /** Kennung fürs Gegner-Lexikon (leer = taucht dort nicht auf) */
+  abstract readonly kind: string;
   alive = true;
+  seen = false;
   hp = 1;
   /** Mit dem Lineal treffbar */
   hittable = true;
@@ -27,6 +30,8 @@ export abstract class Enemy {
   /** Aktuelle Trefferfläche oder null, wenn gerade nichts zu treffen ist. */
   abstract hitbox(): Rect | null;
   protected abstract onDie(dir: number): void;
+  /** Wo der Gegner gerade zu sehen ist (für das Lexikon). null = gerade unsichtbar. */
+  visibleAt(): { x: number; y: number } | null { const h = this.hitbox(); return h ? { x: h.centerX, y: h.centerY } : null; }
   protected onHurt(_dir: number) {}
 
   hit(dir: number) {
@@ -39,12 +44,13 @@ export abstract class Enemy {
     const hb = this.hitbox();
     this.alive = false;
     this.onDie(dir);
-    if (hb) this.scene.enemyDefeated(hb.centerX, hb.y, this.reward);
+    if (hb) this.scene.enemyDefeated(this, hb.centerX, hb.y);
   }
 }
 
 /** Staubmaus: läuft Streife und flitzt los, wenn man ihr zu nah kommt. */
 export class DustMouse extends Enemy {
+  readonly kind = 'mouse';
   sprite: Phaser.Physics.Arcade.Sprite;
   private dir = -1;
   private state: 'walk' | 'alert' | 'dash' = 'walk';
@@ -98,6 +104,7 @@ export class DustMouse extends Enemy {
 
 /** Papierflieger: fliegen als Dreierformation durch den Raum. Ein Hieb knüllt sie zusammen. */
 export class Plane extends Enemy {
+  readonly kind = 'plane';
   private img: Phaser.GameObjects.Image;
   private down = false;
   private vy = 0;
@@ -130,13 +137,14 @@ export class Plane extends Enemy {
     if (this.down) return;
     this.down = true; this.vy = -160;
     this.img.setTexture('paperball');
-    this.scene.enemyDefeated(this.img.x, this.img.y - 8, this.reward);
+    this.scene.enemyDefeated(this, this.img.x, this.img.y - 8);
   }
   protected onDie() {}
 }
 
 /** Bücherwurm: frisst sich durchs Regal und taucht an wechselnden Löchern auf. Erst rascheln, dann schnappen. */
 export class Bookworm extends Enemy {
+  readonly kind = 'worm';
   private img: Phaser.GameObjects.Sprite;
   private holeImgs: Phaser.GameObjects.Image[];
   private state: 'hidden' | 'tell' | 'out' | 'back' = 'hidden';
@@ -208,6 +216,7 @@ export class Bookworm extends Enemy {
 
 /** Laubbläser: bläst im Takt und schiebt die Figur weg. Zwei Hiebe schalten ihn ab. */
 export class Blower extends Enemy {
+  readonly kind = 'blower';
   private img: Phaser.GameObjects.Image;
   on = false;
   private until = 1200;
@@ -258,6 +267,7 @@ export class Blower extends Enemy {
 
 /** Magnet: zieht abwechselnd an (blau) und stößt ab (rot). Kein Gegner zum Besiegen, sondern zum Ausnutzen. */
 export class Magnet extends Enemy {
+  readonly kind = 'magnet';
   private img: Phaser.GameObjects.Image;
   private gfx: Phaser.GameObjects.Graphics;
   static RADIUS = 250;
@@ -270,6 +280,7 @@ export class Magnet extends Enemy {
     this.img = scene.add.image(x, y, 'magnet').setDepth(8);
   }
   hitbox() { return null; }
+  visibleAt() { return { x: this.x, y: this.y }; }
   protected onDie() {}
 
   /** +1 = zieht an, -1 = stößt ab, 0 = schaltet gerade um */
@@ -300,6 +311,7 @@ export class Magnet extends Enemy {
 
 /** Bunsenbrenner: aus – Zündflamme – Stichflamme. Im Aus-Takt vorbeilaufen. */
 export class Burner extends Enemy {
+  readonly kind = 'burner';
   private flame: Phaser.GameObjects.Image;
   private wasOn = false;
   private static CYCLE = 3400;
@@ -322,6 +334,7 @@ export class Burner extends Enemy {
     const h = 86 * this.grow(time);
     return new Rect(this.x - 8, this.groundY - 22 - h, 16, h);
   }
+  visibleAt() { return { x: this.x, y: this.groundY - 20 }; }
   protected onDie() {}
 
   update(time: number) {
@@ -336,6 +349,7 @@ export class Burner extends Enemy {
 
 /** Raupe: sitzt auf einem großen Ginkgoblatt und frisst es auf, sobald man in die Nähe kommt. Schnell sein! */
 export class Caterpillar extends Enemy {
+  readonly kind = 'caterpillar';
   private leaf: Phaser.GameObjects.Image;
   private cat: Phaser.GameObjects.Sprite;
   private eat = 0;
@@ -381,6 +395,7 @@ export class Caterpillar extends Enemy {
 
 /** Basketball: springt im festen Rhythmus. Von der Seite tut er weh, von oben federt er hoch. */
 export class Ball extends Enemy {
+  readonly kind = 'ball';
   sprite: Phaser.Physics.Arcade.Sprite;
   constructor(scene: GameScene, x: number, y: number) {
     super(scene);
@@ -394,4 +409,24 @@ export class Ball extends Enemy {
   hitbox() { const b = this.sprite.body as Phaser.Physics.Arcade.Body; return new Rect(b.x + 3, b.y + 3, b.width - 6, b.height - 6); }
   update(_time: number, dt: number) { this.sprite.angle += 220 * dt; }
   protected onDie() {}
+}
+
+/** Übungsscheibe fürs Tutorial: steht still und fällt beim ersten Hieb um. */
+export class Target extends Enemy {
+  readonly kind = '';
+  private img: Phaser.GameObjects.Image;
+  constructor(scene: GameScene, private x: number, private groundY: number) {
+    super(scene);
+    this.harmful = false; this.stompable = true; this.reward = 1;
+    this.img = scene.add.image(x, groundY, 'target').setOrigin(0.5, 1).setDepth(8);
+  }
+  hitbox() { return new Rect(this.x - 22, this.groundY - 66, 44, 66); }
+  update(time: number) { this.img.angle = Math.sin(time / 400) * 2; }
+  protected onDie(dir: number) {
+    this.scene.fx.burst(this.x, this.groundY - 40, 0xd23b3b, 10);
+    this.scene.fx.burst(this.x, this.groundY - 40, 0xf4f4f4, 10);
+    this.img.setOrigin(0.5, 1);
+    this.scene.tweens.add({ targets: this.img, angle: (dir || 1) * 90, duration: 360, ease: 'Bounce.Out' });
+    this.scene.tweens.add({ targets: this.img, alpha: 0, delay: 900, duration: 400, onComplete: () => this.img.destroy() });
+  }
 }

@@ -58,11 +58,17 @@ Das Ginkgoblatt (Schullogo) ist der rote Faden: Der alte Ginkgo hat seine golden
 ### Level
 | Nr. | Level | Neu darin |
 |---|---|---|
+| Tutorial | Erster Schultag | Laufen, Springen, Blätter, Setzling, Lineal, erste Staubmaus. Schritt-für-Schritt-Aufgaben, Türen öffnen sich erst nach der Aufgabe. Kein „Nachsitzen“ möglich. |
 | 1 | Klassenzimmer | Staubmaus, Papierflieger, Bücherwurm, Raupe |
 | 2 | Turnhalle | Basketball, Matten, Laubbläser |
 | 3 | Physikraum | Magnet, Bunsenbrenner |
 
-Level werden in `src/data/levels.ts` gebaut (Legende steht oben in der Datei).
+Level werden in `src/data/levels.ts` gebaut (Legende steht oben in der Datei). Die Tutorial-Aufgaben stehen beim Tutorial-Level unter `tutorial`.
+
+Beim allerersten „Spielen“ startet direkt das Tutorial, danach geht es zur Levelauswahl.
+
+### Gegner-Lexikon
+Jeder Gegner, der zum ersten Mal ins Bild kommt, wird im **Gegner-Lexikon** (Hauptmenü) freigeschaltet, mit kurzer Einblendung „Neu im Lexikon“. Unentdeckte Gegner erscheinen dort als schwarze Silhouette. Für entdeckte Gegner zeigt das Lexikon Verhalten, Tipp, Fundort und wie oft man sie besiegt hat. Die Texte stehen in `src/data/bestiary.ts`.
 
 ### Gegner (keine Menschen)
 | Gegner | Verhalten | Konter |
@@ -86,5 +92,5 @@ Handy: Touch-Buttons (links, rechts, X, Sprung)
 ```bash
 npm run build && npx vite preview --port 4173
 ```
-- `http://localhost:4173/?level=1` startet direkt Level 2 (Zählung ab 0).
-- `http://localhost:4173/?level=1&bot=1` lässt einen **Testbot** das Level spielen. Er prüft, ob ein Level lösbar ist. Das Ergebnis steht in `window.__alx`.
+- `http://localhost:4173/?level=2` startet direkt Level 2 (0 = Tutorial).
+- `http://localhost:4173/?level=2&bot=1` lässt einen **Testbot** das Level spielen. Er prüft, ob ein Level lösbar ist. Das Ergebnis steht in `window.__alx`.

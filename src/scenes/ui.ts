@@ -11,10 +11,10 @@ export function menuBackground(scene: Phaser.Scene) {
   scene.add.rectangle(480, 270, 960, 540, 0x10132b, 0.6);
 }
 
-export function button(scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void, w = 320) {
-  const bg = scene.add.rectangle(0, 0, w, 56, 0xffcc33).setStrokeStyle(4, 0x7a4b00);
+export function button(scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void, w = 320, h = 56) {
+  const bg = scene.add.rectangle(0, 0, w, h, 0xffcc33).setStrokeStyle(4, 0x7a4b00);
   const txt = scene.add.text(0, 0, label, { fontFamily: FONT, fontSize: '15px', color: '#2b1a00', fontStyle: 'bold' }).setOrigin(0.5);
-  const c = scene.add.container(x, y, [bg, txt]).setSize(w, 56).setInteractive({ useHandCursor: true });
+  const c = scene.add.container(x, y, [bg, txt]).setSize(w, h).setInteractive({ useHandCursor: true });
   c.on('pointerover', () => bg.setFillStyle(0xffe080));
   c.on('pointerout', () => bg.setFillStyle(0xffcc33));
   c.on('pointerup', () => { sfx.click(); onClick(); });
