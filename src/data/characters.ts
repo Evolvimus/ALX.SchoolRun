@@ -12,6 +12,8 @@ export type Ability = 'none' | 'doubleJump' | 'speed' | 'highJump' | 'glide' | '
 export interface Look {
   hair: number; skin: number; shirt: number; vest: number; tie: number;
   belt: number; pants: number; shoes: number; glasses: number; stubble: number;
+  /** Farbe der Brillengläser (Standard: durchsichtig). */
+  lens?: number;
   /** Zopf am Hinterkopf. */
   ponytail?: boolean;
 }
@@ -57,7 +59,7 @@ export const abilityText = (c: Character) => [c.ability, ...(c.bonus ?? [])].map
 // ---------------------------------------------------------------- Herr Hammer
 const HAMMER_LOOK: Look = {
   hair: 0x4a3220, skin: 0xf0c4a0, shirt: 0x2f5f63, vest: 0x5a5a5e, tie: 0x6fa3a0,
-  belt: 0x7a4a24, pants: 0x34476e, shoes: 0x5a3a22, glasses: 0x6a6f7a, stubble: 0xc99a78, ponytail: true,
+  belt: 0x7a4a24, pants: 0x34476e, shoes: 0x5a3a22, glasses: 0x2e2a2a, stubble: 0xc99a78, ponytail: true,
 };
 const HAMMER_QUOTES = [
   'Ethik ist wie Religion,\nnur ohne Weihnachten.',
@@ -76,7 +78,7 @@ const HAMMER_MYTHIC: Character = {
   ...HAMMER, id: 'lehrer01m', name: 'Admin Hammer', subject: 'Chemie · Bio · IT', rarity: 'mythisch',
   bonus: ['doubleJump'], weapon: 'goldHammer', variantOf: HAMMER.id,
   quotes: [...HAMMER_QUOTES, 'Hast du es schon mal mit\nAus- und Einschalten probiert?'],
-  look: { ...HAMMER_LOOK, tie: 0xffc928, glasses: 0x39e6ff }, price: PRICE.mythisch,
+  look: { ...HAMMER_LOOK, tie: 0xffc928, glasses: 0x12b8e0, lens: 0xb8f4ff }, price: PRICE.mythisch,
 };
 
 // ---------------------------------------------------------------- Platzhalter 02–20

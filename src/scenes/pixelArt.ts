@@ -119,10 +119,16 @@ function drawDetailed(g: G, l: Look, f: string) {
   R(7, 4, 2, 9, hair); R(27, 4, 2, 8, hair); R(8, 4, 2, 3, hair); R(26, 4, 2, 3, hair); R(8, 4, 1, 9, hairD); R(27, 4, 1, 8, hairD);
   // Augenbrauen
   R(10, 8, 6, 1, hairD); R(20, 8, 6, 1, hairD);
-  // Brille: Gestell, Gläser, Augen
-  R(9, 10, 8, 7, l.glasses); R(19, 10, 8, 7, l.glasses); R(17, 12, 2, 1, l.glasses); R(8, 12, 1, 1, l.glasses); R(27, 12, 1, 1, l.glasses);
-  R(10, 11, 6, 5, 0xe6f2f5); R(20, 11, 6, 5, 0xe6f2f5); R(10, 11, 2, 1, 0xffffff); R(20, 11, 2, 1, 0xffffff);
-  R(12, 12, 3, 3, 0x1a1a2e); R(21, 12, 3, 3, 0x1a1a2e); R(12, 12, 1, 1, 0x5a7a9a); R(21, 12, 1, 1, 0x5a7a9a);
+  // Brille: dünnes Gestell mit abgerundeten Ecken, durchsichtige Gläser, Augen dahinter
+  const lens = l.lens ?? 0xf8dcc4;
+  for (const x of [9, 19]) {
+    R(x + 1, 11, 6, 4, lens);                                   // Glas
+    R(x + 1, 10, 6, 1, l.glasses); R(x + 1, 15, 6, 1, l.glasses); // oben, unten
+    R(x, 11, 1, 4, l.glasses); R(x + 7, 11, 1, 4, l.glasses);     // links, rechts
+    R(x + 2, 12, 4, 2, 0xffffff); R(x + 3, 12, 2, 2, 0x1a1a2e);   // Auge
+    R(x + 5, 11, 1, 1, 0xffffff);                                // Lichtreflex
+  }
+  R(17, 12, 2, 1, l.glasses); R(8, 12, 1, 1, l.glasses); R(27, 12, 1, 1, l.glasses); // Steg und Bügel
   // Nase
   R(18, 14, 1, 4, skinD); R(16, 18, 4, 1, skinD);
   // Bart: Stoppeln an Wangen und Kinn, Schnurr- und Kinnbart
