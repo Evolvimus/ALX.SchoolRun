@@ -45,6 +45,20 @@ const LEGS: Record<string, string[]> = {
   '-w2': ['..PPPPPPPP..', '..PPP..PPP..', '.KKKK..PPP..', '.......KKKK.', '.......KKKK.'],
   '-j': ['..PPPPPPPP..', '.PPPP..PPPP.', '.KKK....KKK.', '............', '............'],
 };
+// Figuren mit eigenem Aussehen (Brille, Weste, Krawatte, Gürtel) – z. B. Herr Hammer
+const HEAD_LOOK = [
+  '...HHHHHH...', '..HHHHHHHH..', '.HHHHHHHHHH.', '.HSSSSSSSSH.', '.SSSSSSSSSS.', '.SGGGSSGGGS.',
+  '.SGEGSSGEGS.', '..SSSSSSSS..', '..STTMMTTS..', '...TSSSST...',
+];
+const TORSO_LOOK = ['..VWWNNWWV..', '.VVVWNNWVVV.', 'WVVVVNNVVVVW', 'WWVVVNNVVVWW', 'SWVVVVVVVVWS', '..LLLLBLLL..'];
+const TORSO_LOOK_JUMP = ['S.VWWNNWWV.S', 'WVVVWNNWVVVW', '.WVVVNNVVVW.', '..VVVNNVVV..', '..VVVVVVVV..', '..LLLLBLLL..'];
+const LEGS_LOOK: Record<string, string[]> = {
+  '': ['..PPP..PPP..', '..PPP..PPP..', '..PPP..PPP..', '.KKKK..KKKK.'],
+  '-w1': ['..PPP..PPP..', '..PPP..PPP..', '..PPP.KKKK..', '.KKKK.......'],
+  '-w2': ['..PPP..PPP..', '..PPP..PPP..', '.KKKK..PPP..', '.......KKKK.'],
+  '-j': ['.PPPP..PPPP.', '.KKK....KKK.', '............', '............'],
+};
+
 const HAIR = [0x3b2414, 0x8a5a2b, 0xd9b44a, 0x1a1a1a, 0xa0a0a0, 0xb5452b];
 
 function darken(c: number, f = 0.7) {
@@ -69,9 +83,22 @@ export function makePixelTextures(scene: Phaser.Scene) {
 
   // ---- Spielfiguren (Platzhalter) mit Lauf- und Sprungbild ----
   ALL_CHARACTERS.forEach((c, i) => {
+    if (c.look) {
+      const l = c.look;
+      const pal = { H: l.hair, S: l.skin, E: 0x1a1a2e, M: 0xa8584a, G: l.glasses, T: l.stubble, W: l.shirt, V: l.vest, N: l.tie, L: l.belt, B: 0xd9c070, P: l.pants, K: l.shoes };
+      for (const f of Object.keys(LEGS_LOOK)) gen(`char-${c.id}${f}`, 12, 20, () => sprite(g, [...HEAD_LOOK, ...(f === '-j' ? TORSO_LOOK_JUMP : TORSO_LOOK), ...LEGS_LOOK[f]], pal));
+      return;
+    }
     const pal = { H: HAIR[i % HAIR.length], S: 0xf2c49b, E: 0x1a1a2e, M: 0xb5524a, B: c.color, D: darken(c.color), P: 0x2e3a5c, K: 0x222222 };
     for (const f of Object.keys(LEGS)) gen(`char-${c.id}${f}`, 12, 20, () => sprite(g, [...HEAD, ...(f === '-j' ? TORSO_JUMP : TORSO), ...LEGS[f]], pal));
   });
+  // Hammer (Herr Hammer) und goldener Hammer (mythische Version)
+  const hammer = (handle: number, head: number, shine: number) => {
+    px(g, 0, 3, 12, 2, handle); px(g, 0, 4, 12, 1, darken(handle));
+    px(g, 11, 0, 5, 8, head); px(g, 11, 0, 5, 1, shine); px(g, 15, 0, 1, 8, darken(head)); px(g, 11, 7, 5, 1, darken(head));
+  };
+  gen('hammer', 16, 8, () => hammer(0x8a5a2b, 0x8c8f99, 0xc9ccd6));
+  gen('hammer-gold', 16, 8, () => hammer(0x5a3a22, 0xf2b61c, 0xfff0a0));
   gen('ruler', 16, 3, () => { px(g, 0, 0, 16, 3, 0xffd23f); px(g, 0, 2, 16, 1, 0xc99a14); for (let i = 1; i < 16; i += 2) px(g, i, 0, 1, i % 4 === 1 ? 2 : 1, 0x6b4a00); });
 
   // ---- Ginkgo: Schullogo als roter Faden ----

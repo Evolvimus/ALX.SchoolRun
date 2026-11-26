@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { LEVELS, Level, countLeaves } from '../data/levels';
-import { getCharacter, Character } from '../data/characters';
+import { getCharacter, Character, hasAbility } from '../data/characters';
 import { persist, save } from '../services/save';
 import { sfx } from '../services/audio';
 import { button, FONT, portraitKey } from './ui';
@@ -43,6 +43,7 @@ export class GameScene extends Phaser.Scene {
   private lastLeafAt = 0;
   private startTime = -1;
   private done = false;
+  private smashQuoted = false;
   private bot = false;
   private panelX = 480;
   private bg!: Phaser.GameObjects.TileSprite;
@@ -64,7 +65,7 @@ export class GameScene extends Phaser.Scene {
   create() {
     this.enemies = []; this.spikes = []; this.leaves = []; this.checkpoints = [];
     this.collected = this.bonus = this.combo = 0;
-    this.done = false; this.startTime = -1; this.checkpointIndex = -1; this.panelX = 480;
+    this.done = false; this.smashQuoted = false; this.startTime = -1; this.checkpointIndex = -1; this.panelX = 480;
     this.touch = { left: false, right: false, jump: false, attack: false };
     this.bot = new URLSearchParams(location.search).has('bot');
     this.char = getCharacter(save.selected);
@@ -104,7 +105,8 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player.zone, this.solids);
     this.physics.add.collider(this.player.zone, mats, () => { if (this.player.body.touching.down) this.player.bounce(-880); });
     this.physics.add.collider(this.player.zone, this.crates, (_p, c) => {
-      if (this.char.ability !== 'smash') return;
+      if (!hasAbility(this.char, 'smash')) return;
+      if (this.char.smashQuote && !this.smashQuoted) { this.smashQuoted = true; this.player.say(this.char.smashQuote, this.time.now); }
       const crate = c as Phaser.Physics.Arcade.Image;
       crate.disableBody();
       this.fx.burst(crate.x, crate.y, 0xb8834c, 12);

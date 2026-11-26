@@ -8,6 +8,8 @@ const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const checkChar = b => { let s = 0; for (let i = 0; i < b.length; i++) s += (ALPHABET.indexOf(b[i]) + 1) * (i + 3); return ALPHABET[s % ALPHABET.length]; };
 
 const perTeacher = Number(process.argv[2] ?? 50);
+// Standard: alle 20 Lehrer:innen. Mythische Versionen (z. B. lehrer01m) nur ausdrücklich angeben,
+// damit man davon gezielt wenige Karten drucken kann:  npm run codes -- 5 lehrer01m
 const ids = process.argv[3]?.split(',') ?? Array.from({ length: 20 }, (_, i) => `lehrer${String(i + 1).padStart(2, '0')}`);
 
 const seen = new Set();

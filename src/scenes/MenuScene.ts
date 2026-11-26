@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { button, FONT, menuBackground, portraitKey } from './ui';
 import { save } from '../services/save';
-import { getCharacter } from '../data/characters';
+import { getCharacter, TEACHERS } from '../data/characters';
 import { isTestMode } from '../services/backend';
 import { sfx } from '../services/audio';
 
@@ -38,7 +38,7 @@ export class MenuScene extends Phaser.Scene {
     this.tweens.add({ targets: img, y: 324, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.add.text(800, 440, c.name, { fontFamily: FONT, fontSize: '12px', color: '#fff' }).setOrigin(0.5);
     this.add.text(20, 20, `${save.coins} Ginkgo-Taler`, { fontFamily: FONT, fontSize: '14px', color: '#ffd700' });
-    this.add.text(940, 20, `${save.unlocked.length - 1}/20 Lehrer`, { fontFamily: FONT, fontSize: '12px', color: '#fff' }).setOrigin(1, 0);
+    this.add.text(940, 20, `${save.unlocked.length - 1}/${TEACHERS.length} Lehrer`, { fontFamily: FONT, fontSize: '12px', color: '#fff' }).setOrigin(1, 0);
 
     const sound = this.add.text(20, 512, '', { fontFamily: FONT, fontSize: '10px', color: '#c8c8d8' }).setInteractive({ useHandCursor: true });
     const label = () => sound.setText(save.muted ? 'TON: AUS' : 'TON: AN');

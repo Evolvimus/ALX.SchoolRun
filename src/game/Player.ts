@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
-import { Character } from '../data/characters';
-import { portraitKey } from '../scenes/ui';
+import { Character, hasAbility } from '../data/characters';
+import { FONT, portraitKey } from '../scenes/ui';
 import { sfx } from '../services/audio';
 
 export interface Controls { left: boolean; right: boolean; jump: boolean; attack: boolean; }
@@ -18,6 +18,12 @@ export class Player {
   body: Phaser.Physics.Arcade.Body;
   view: Phaser.GameObjects.Sprite;
   private ruler: Phaser.GameObjects.Image;
+  private bubble?: Phaser.GameObjects.Text;
+  private bubbleUntil = 0;
+  private nextQuote = 0;
+  private quoteIndex = 0;
+  private nextSparkle = 0;
+  private reach: number;
 
   facing = 1;
   lives = 3;
@@ -54,7 +60,12 @@ export class Player {
     this.animated = this.baseKey.startsWith('char-');
     this.view = scene.add.sprite(x, y, this.baseKey).setOrigin(0.5, 1).setDepth(10);
     this.baseScale = 60 / this.view.height;
-    this.ruler = scene.add.image(x, y, 'ruler').setOrigin(0.08, 0.5).setDepth(11).setVisible(false);
+    const weapon = char.weapon === 'goldHammer' ? 'hammer-gold' : char.weapon === 'hammer' ? 'hammer' : 'ruler';
+    this.reach = char.weapon === 'goldHammer' ? 90 : 70;
+    this.ruler = scene.add.image(x, y, weapon).setOrigin(0.08, 0.5).setDepth(11).setVisible(false);
+    if (char.weapon === 'goldHammer') this.ruler.setScale(1.25);
+    this.quoteIndex = Math.floor(Math.random() * (char.quotes?.length ?? 1));
+    this.nextQuote = scene.time.now + 900;
   }
 
   get x() { return this.body.center.x; }
@@ -65,15 +76,15 @@ export class Player {
   /** Trefferzone des Lineals, solange der Hieb aktiv ist. */
   attackRect(time: number) {
     if (time >= this.attackUntil) return null;
-    return new Phaser.Geom.Rectangle(this.facing > 0 ? this.x - 4 : this.x - 66, this.body.y - 16, 70, this.body.height + 20);
+    return new Phaser.Geom.Rectangle(this.facing > 0 ? this.x - 4 : this.x - this.reach + 4, this.body.y - 16, this.reach, this.body.height + 20);
   }
 
   update(time: number, deltaMs: number, c: Controls) {
     const dt = Math.min(deltaMs, 34) / 1000, b = this.body;
     const ground = this.onGround;
     const locked = time < this.lockUntil;
-    const maxSpeed = this.char.ability === 'speed' ? 400 : 300;
-    const jumpV = this.char.ability === 'highJump' ? -780 : -640;
+    const maxSpeed = hasAbility(this.char, 'speed') ? 400 : 300;
+    const jumpV = hasAbility(this.char, 'highJump') ? -780 : -640;
 
     // Landen
     if (ground && !this.wasGround && this.fallSpeed > 260) {
@@ -81,7 +92,7 @@ export class Player {
       this.scene.fx.dust(this.x, b.bottom, 5);
       sfx.land();
     }
-    if (ground) { this.lastGround = time; this.airJumps = this.char.ability === 'doubleJump' ? 1 : 0; }
+    if (ground) { this.lastGround = time; this.airJumps = hasAbility(this.char, 'doubleJump') ? 1 : 0; }
     this.wasGround = ground;
     this.fallSpeed = b.velocity.y;
 
@@ -106,7 +117,7 @@ export class Player {
     }
     if (this.jumping && !c.jump && b.velocity.y < -240) { b.setVelocityY(b.velocity.y * 0.5); this.jumping = false; }
     if (b.velocity.y >= 0) this.jumping = false;
-    if (this.char.ability === 'glide' && c.jump && b.velocity.y > 120) b.setVelocityY(120);
+    if (hasAbility(this.char, 'glide') && c.jump && b.velocity.y > 120) b.setVelocityY(120);
     this.prevJump = c.jump;
 
     // Äußere Einflüsse: Wind und Magnetkraft
@@ -124,7 +135,29 @@ export class Player {
     }
     this.prevAttack = c.attack;
 
+    // Sprüche: kurz nach dem Start und danach ab und zu
+    const quotes = this.char.quotes;
+    if (quotes?.length && time >= this.nextQuote) {
+      this.say(quotes[this.quoteIndex++ % quotes.length], time);
+      this.nextQuote = time + Phaser.Math.Between(22000, 32000);
+    }
+    // Mythisch: Glitzer-Spur
+    if (this.char.rarity === 'mythisch' && time >= this.nextSparkle && (dir !== 0 || !ground)) {
+      this.nextSparkle = time + 60;
+      this.scene.fx.burst(this.x + Phaser.Math.Between(-8, 8), this.y + Phaser.Math.Between(-20, 20), Math.random() < 0.5 ? 0xffd84a : 0xff7fbf, 1);
+    }
+
     this.draw(time, ground, dir !== 0);
+  }
+
+  /** Sprechblase über dem Kopf. */
+  say(text: string, time: number, ms = 3200) {
+    this.bubble?.destroy();
+    this.bubble = this.scene.add.text(this.x, this.body.y - 14, text, {
+      fontFamily: FONT, fontSize: '9px', color: '#1a1a2e', align: 'center', lineSpacing: 4,
+      backgroundColor: '#ffffffee', padding: { x: 7, y: 6 },
+    }).setOrigin(0.5, 1).setDepth(17);
+    this.bubbleUntil = time + ms;
   }
 
   private jump(v: number) {
@@ -138,7 +171,7 @@ export class Player {
   bounce(v: number) {
     this.body.setVelocityY(v);
     this.jumping = false;
-    this.airJumps = this.char.ability === 'doubleJump' ? 1 : 0;
+    this.airJumps = hasAbility(this.char, 'doubleJump') ? 1 : 0;
     this.squashTo(0.82, 1.2);
     sfx.bounce();
   }
@@ -179,6 +212,11 @@ export class Player {
     v.setFlipX(this.facing < 0);
     v.setScale(this.baseScale * this.squash.x, this.baseScale * this.squash.y);
     v.setAlpha(time < this.safeUntil && Math.floor(time / 80) % 2 ? 0.3 : 1);
+
+    if (this.bubble) {
+      if (time >= this.bubbleUntil) { this.bubble.destroy(); this.bubble = undefined; }
+      else this.bubble.setPosition(b.center.x, b.y - 14);
+    }
 
     const swinging = time < this.attackUntil;
     this.ruler.setVisible(swinging);

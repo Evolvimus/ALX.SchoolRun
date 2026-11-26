@@ -38,6 +38,11 @@ export function portraitKey(scene: Phaser.Scene, c: Character) {
 export function card(scene: Phaser.Scene, x: number, y: number, c: Character, unlocked: boolean, scale = 1) {
   const items: Phaser.GameObjects.GameObject[] = [];
   items.push(scene.add.rectangle(0, 0, 110, 150, 0x2a2f5a).setStrokeStyle(5, RARITY_COLOR[c.rarity]));
+  if (c.rarity === 'mythisch') {
+    const glow = scene.add.rectangle(0, 0, 100, 140).setStrokeStyle(2, 0xffd84a);
+    items.push(glow);
+    scene.tweens.add({ targets: glow, alpha: 0.2, duration: 700, yoyo: true, repeat: -1 });
+  }
   const img = scene.add.image(0, -15, portraitKey(scene, c));
   img.setScale(Math.min(90 / img.width, 95 / img.height));
   if (!unlocked) img.setTintFill(0x111111);

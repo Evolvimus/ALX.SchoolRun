@@ -19,7 +19,7 @@ export class ShopScene extends Phaser.Scene {
         { fontFamily: FONT, fontSize: '14px', color: '#fff', align: 'center' }).setOrigin(0.5);
       return;
     }
-    const locked = TEACHERS.filter(t => !save.unlocked.includes(t.id));
+    const locked = TEACHERS.filter(t => t.price > 0 && !save.unlocked.includes(t.id));
     if (!locked.length) { this.add.text(480, 270, 'Du hast alle Lehrer! 🏆', { fontFamily: FONT, fontSize: '17px', color: '#fff' }).setOrigin(0.5); return; }
     const info = this.add.text(560, 500, 'Kostenlos – nur mit im Spiel verdienten Ginkgo-Talern', { fontFamily: FONT, fontSize: '10px', color: '#fff' }).setOrigin(0.5);
     locked.forEach((t, i) => {

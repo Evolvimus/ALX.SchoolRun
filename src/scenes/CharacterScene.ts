@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { backButton, card, FONT, title, menuBackground } from './ui';
-import { ALL_CHARACTERS, ABILITY_LABEL, RARITY_LABEL } from '../data/characters';
+import { ALL_CHARACTERS, abilityText, RARITY_LABEL } from '../data/characters';
 import { persist, save } from '../services/save';
 
 export class CharacterScene extends Phaser.Scene {
@@ -15,10 +15,10 @@ export class CharacterScene extends Phaser.Scene {
       const k = card(this, x, y, c, unlocked, 0.7).setInteractive({ useHandCursor: true });
       if (c.id === save.selected) this.add.rectangle(x, y, 84, 112).setStrokeStyle(4, 0xffffff);
       k.on('pointerup', () => {
-        if (!unlocked) { info.setText(`🔒 ${RARITY_LABEL[c.rarity]} – per Karten-Code oder im Shop freischalten`); return; }
+        if (!unlocked) { info.setText(c.price ? `🔒 ${RARITY_LABEL[c.rarity]} – per Karten-Code oder im Shop freischalten` : `🔒 ${RARITY_LABEL[c.rarity]} – nur per Karten-Code`); return; }
         save.selected = c.id; persist(); this.scene.restart();
       });
-      k.on('pointerover', () => unlocked && info.setText(`${c.name} (${c.subject}) · ${RARITY_LABEL[c.rarity]} · Fähigkeit: ${ABILITY_LABEL[c.ability]}`));
+      k.on('pointerover', () => unlocked && info.setText(`${c.name} (${c.subject}) · ${RARITY_LABEL[c.rarity]} · Fähigkeit: ${abilityText(c)}`));
     });
     backButton(this);
   }
