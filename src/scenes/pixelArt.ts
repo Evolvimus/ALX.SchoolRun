@@ -120,7 +120,7 @@ function drawDetailed(g: G, l: Look, f: string) {
   R(14, 24, 8, 3, skinD);
 
   // --- Kopf (bewusst groß, damit man das Gesicht erkennt): oben kahl, Haare nur seitlich und hinten, nach hinten gebunden
-  const face = l.face ?? 0, oval = face > 0;
+  const face = (jump ? l.faceJump : undefined) ?? l.face ?? 0, oval = face > 0;
   R(13, 0, 10, 1, skin); R(11, 1, 14, 1, skin); R(10, 2, 16, 1, skin); R(9, 3, 18, 3, skin);
   if (oval) { // längliches Gesicht, das zum Kinn hin schmaler wird
     R(8, 6, 20, 10, skin); R(9, 16, 18, 2, skin); R(10, 18, 16, 2, skin); R(11, 20, 14, 1, skin);
