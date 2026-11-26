@@ -1,6 +1,6 @@
 // Pixel-Art-Grafiken, prozedural gezeichnet (1 Pixel = 3x3 Bildschirmpixel).
 import Phaser from 'phaser';
-import { ALL_CHARACTERS } from '../data/characters';
+import { ALL_CHARACTERS, Look } from '../data/characters';
 
 export const P = 3;
 type G = Phaser.GameObjects.Graphics;
@@ -45,22 +45,6 @@ const LEGS: Record<string, string[]> = {
   '-w2': ['..PPPPPPPP..', '..PPP..PPP..', '.KKKK..PPP..', '.......KKKK.', '.......KKKK.'],
   '-j': ['..PPPPPPPP..', '.PPPP..PPPP.', '.KKK....KKK.', '............', '............'],
 };
-// Figuren mit eigenem Aussehen (Brille, Weste, Krawatte, Gürtel) – z. B. Herr Hammer
-const HEAD_LOOK = [
-  '...HHHHHH...', '..HHHHHHHH..', '.HHHHHHHHHH.', '.HSSSSSSSSH.', '.SSSSSSSSSS.', '.SGGGSSGGGS.',
-  '.SGEGSSGEGS.', '..SSSSSSSS..', '..STTMMTTS..', '...TSSSST...',
-];
-// Zopf: am Hinterkopf gebunden (Z = Haargummi), fällt eng am Kopf entlang nach unten auf die Schulter
-const PONYTAIL = ['', '', '', 'Z', 'H', 'H', 'H', 'HH', 'HH', '.H', '.H'];
-const TORSO_LOOK = ['..VWWNNWWV..', '.VVVWNNWVVV.', 'WVVVVNNVVVVW', 'WWVVVNNVVVWW', 'SWVVVVVVVVWS', '..LLLLBLLL..'];
-const TORSO_LOOK_JUMP = ['S.VWWNNWWV.S', 'WVVVWNNWVVVW', '.WVVVNNVVVW.', '..VVVNNVVV..', '..VVVVVVVV..', '..LLLLBLLL..'];
-const LEGS_LOOK: Record<string, string[]> = {
-  '': ['..PPP..PPP..', '..PPP..PPP..', '..PPP..PPP..', '.KKKK..KKKK.'],
-  '-w1': ['..PPP..PPP..', '..PPP..PPP..', '..PPP.KKKK..', '.KKKK.......'],
-  '-w2': ['..PPP..PPP..', '..PPP..PPP..', '.KKKK..PPP..', '.......KKKK.'],
-  '-j': ['.PPPP..PPPP.', '.KKK....KKK.', '............', '............'],
-};
-
 const HAIR = [0x3b2414, 0x8a5a2b, 0xd9b44a, 0x1a1a1a, 0xa0a0a0, 0xb5452b];
 
 function darken(c: number, f = 0.7) {
@@ -77,6 +61,78 @@ const GOLD = { y: 0xffc928, w: 0xffe98a, d: 0xd99a00, s: 0x8a6a1a };
 const GREEN = { y: 0x6cc04a, w: 0xa6e07a, d: 0x3f8f2e, s: 0x4a6a1a };
 const WILT = { y: 0x5e5038, w: 0x6f6046, d: 0x40351f, s: 0x3a2f1c };
 
+/**
+ * Detailfigur in dreifacher Auflösung (36x60 statt 12x20) für Lehrer:innen mit eigenem Aussehen.
+ * f = '' (stehen), '-w1'/'-w2' (laufen), '-j' (springen)
+ */
+function drawDetailed(g: G, l: Look, f: string) {
+  const R = (x: number, y: number, w: number, h: number, c: number) => px(g, x, y, w, h, c);
+  const skin = l.skin, skinD = darken(l.skin, 0.86), hair = l.hair, hairD = darken(l.hair, 0.7);
+  const jump = f === '-j';
+
+  // --- Zopf (hinter Schulter und Arm, deshalb zuerst)
+  if (l.ponytail) {
+    R(5, 8, 3, 9, hair); R(4, 15, 3, 12, hair); R(5, 26, 2, 5, hair); R(6, 30, 1, 3, hairD);
+    R(4, 15, 1, 12, hairD); R(5, 9, 3, 1, 0x1a1a1a);
+  }
+
+  // --- Beine und Schuhe
+  const leg = (x: number, len: number, shoeDx: number) => {
+    R(x, 45, 7, len, l.pants); R(x, 45, 1, len, darken(l.pants, 0.8)); R(x + 6, 45, 1, len, darken(l.pants, 0.8));
+    R(x - 1 + shoeDx, 45 + len, 9, 4, l.shoes); R(x - 1 + shoeDx, 48 + len, 9, 1, darken(l.shoes, 0.6));
+  };
+  R(10, 44, 16, 3, l.pants);
+  if (jump) { leg(9, 6, -1); leg(20, 6, 1); }
+  else if (f === '-w1') { leg(8, 11, -1); leg(20, 8, 2); }
+  else if (f === '-w2') { leg(11, 8, 2); leg(21, 11, 1); }
+  else { leg(10, 11, 0); leg(19, 11, 0); }
+
+  // --- Arme (Hemdärmel) und Hände
+  if (jump) {
+    R(3, 22, 5, 9, l.shirt); R(28, 22, 5, 9, l.shirt); R(3, 22, 1, 9, darken(l.shirt)); R(32, 22, 1, 9, darken(l.shirt));
+    R(5, 28, 5, 3, l.shirt); R(26, 28, 5, 3, l.shirt);
+    R(3, 18, 4, 4, skin); R(29, 18, 4, 4, skin);
+  } else {
+    const sw = f === '-w1' ? 1 : f === '-w2' ? -1 : 0;
+    R(5, 28, 5, 11 + sw, l.shirt); R(26, 28, 5, 11 - sw, l.shirt); R(5, 28, 1, 11 + sw, darken(l.shirt)); R(30, 28, 1, 11 - sw, darken(l.shirt));
+    R(5, 39 + sw, 4, 4, skin); R(27, 39 - sw, 4, 4, skin); R(5, 42 + sw, 4, 1, skinD); R(27, 42 - sw, 4, 1, skinD);
+  }
+
+  // --- Oberkörper: Strickweste mit V-Ausschnitt, Hemd, Krawatte, Gürtel
+  R(10, 27, 16, 16, l.vest); R(10, 27, 1, 16, darken(l.vest)); R(25, 27, 1, 16, darken(l.vest));
+  for (let y = 28; y < 43; y += 2) for (let x = 11 + (y % 4 === 0 ? 1 : 0); x < 25; x += 2) R(x, y, 1, 1, darken(l.vest, 0.85));
+  for (let i = 0; i < 8; i++) R(14 + Math.ceil(i / 2), 27 + i, 8 - Math.ceil(i / 2) * 2, 1, l.shirt); // V-Ausschnitt
+  R(13, 27, 3, 2, darken(l.shirt, 1.3)); R(20, 27, 3, 2, darken(l.shirt, 1.3)); // Kragen
+  R(16, 27, 4, 2, l.tie); R(17, 29, 2, 7, l.tie); R(17, 29, 1, 7, darken(l.tie, 0.85)); R(17, 31, 2, 1, darken(l.tie, 0.7)); R(17, 34, 2, 1, darken(l.tie, 0.7));
+  R(18, 37, 1, 1, 0x2a2a2a); R(18, 40, 1, 1, 0x2a2a2a); // Knöpfe
+  R(10, 43, 16, 2, l.belt); R(10, 44, 16, 1, darken(l.belt)); R(17, 43, 2, 2, 0xd9c070);
+
+  // --- Hals
+  R(14, 24, 8, 3, skinD);
+
+  // --- Kopf (bewusst groß, damit man das Gesicht erkennt): hohe Stirn, zurückgebundene Haare
+  R(12, 2, 12, 1, skin); R(10, 3, 16, 1, skin); R(9, 4, 18, 2, skin); R(8, 6, 20, 15, skin);
+  R(9, 21, 18, 1, skin); R(10, 22, 16, 1, skin); R(12, 23, 12, 1, skin); R(14, 24, 8, 1, skin);
+  R(7, 13, 1, 4, skin); R(28, 13, 1, 4, skin); R(7, 16, 1, 1, skinD); R(28, 16, 1, 1, skinD); // Ohren
+  R(12, 0, 12, 1, hair); R(10, 1, 16, 1, hair); R(9, 2, 18, 1, hair); R(8, 3, 4, 1, hair); R(24, 3, 4, 1, hair);
+  R(12, 3, 12, 1, hairD); R(15, 4, 6, 1, hairD); // Haaransatz, leichte Geheimratsecken
+  R(7, 4, 2, 9, hair); R(27, 4, 2, 8, hair); R(8, 4, 2, 3, hair); R(26, 4, 2, 3, hair); R(8, 4, 1, 9, hairD); R(27, 4, 1, 8, hairD);
+  // Augenbrauen
+  R(10, 8, 6, 1, hairD); R(20, 8, 6, 1, hairD);
+  // Brille: Gestell, Gläser, Augen
+  R(9, 10, 8, 7, l.glasses); R(19, 10, 8, 7, l.glasses); R(17, 12, 2, 1, l.glasses); R(8, 12, 1, 1, l.glasses); R(27, 12, 1, 1, l.glasses);
+  R(10, 11, 6, 5, 0xe6f2f5); R(20, 11, 6, 5, 0xe6f2f5); R(10, 11, 2, 1, 0xffffff); R(20, 11, 2, 1, 0xffffff);
+  R(12, 12, 3, 3, 0x1a1a2e); R(21, 12, 3, 3, 0x1a1a2e); R(12, 12, 1, 1, 0x5a7a9a); R(21, 12, 1, 1, 0x5a7a9a);
+  // Nase
+  R(18, 14, 1, 4, skinD); R(16, 18, 4, 1, skinD);
+  // Bart: Stoppeln an Wangen und Kinn, Schnurr- und Kinnbart
+  R(8, 17, 3, 4, l.stubble); R(25, 17, 3, 4, l.stubble); R(9, 21, 18, 1, l.stubble); R(10, 22, 16, 1, l.stubble); R(12, 23, 12, 1, l.stubble); R(14, 24, 8, 1, l.stubble);
+  const beard = darken(l.stubble, 0.72);
+  R(13, 19, 10, 1, beard); R(13, 20, 1, 3, beard); R(22, 20, 1, 3, beard);
+  R(15, 20, 6, 1, 0x8a4038); R(15, 21, 6, 1, skin); // Mund
+  R(15, 22, 6, 2, beard); R(16, 24, 4, 1, beard);
+}
+
 export function makePixelTextures(scene: Phaser.Scene) {
   const g = scene.add.graphics();
   const gen = (key: string, w: number, h: number, draw: () => void, size = P) => {
@@ -87,11 +143,7 @@ export function makePixelTextures(scene: Phaser.Scene) {
   ALL_CHARACTERS.forEach((c, i) => {
     if (c.look) {
       const l = c.look;
-      const pal = { Z: 0x2a1a10, H: l.hair, S: l.skin, E: 0x1a1a2e, M: 0xa8584a, G: l.glasses, T: l.stubble, W: l.shirt, V: l.vest, N: l.tie, L: l.belt, B: 0xd9c070, P: l.pants, K: l.shoes };
-      for (const f of Object.keys(LEGS_LOOK)) gen(`char-${c.id}${f}`, 12, 20, () => {
-        sprite(g, [...HEAD_LOOK, ...(f === '-j' ? TORSO_LOOK_JUMP : TORSO_LOOK), ...LEGS_LOOK[f]], pal);
-        if (l.ponytail) sprite(g, PONYTAIL, pal);
-      });
+      for (const f of ['', '-w1', '-w2', '-j']) gen(`char-${c.id}${f}`, 36, 60, () => drawDetailed(g, l, f), 1);
       return;
     }
     const pal = { H: HAIR[i % HAIR.length], S: 0xf2c49b, E: 0x1a1a2e, M: 0xb5524a, B: c.color, D: darken(c.color), P: 0x2e3a5c, K: 0x222222 };

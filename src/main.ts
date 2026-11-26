@@ -8,7 +8,7 @@ import { ShopScene } from './scenes/ShopScene';
 import { GameScene } from './scenes/GameScene';
 import { LevelSelectScene } from './scenes/LevelSelectScene';
 
-new Phaser.Game({
+(window as unknown as Record<string, unknown>).__game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#1b1f3b',
