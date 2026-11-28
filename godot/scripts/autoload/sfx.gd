@@ -80,6 +80,9 @@ func _build() -> void:
 		"win": _render(seq([523, 659, 784, 659, 784, 1047], 0.11)),
 		"over": _render(seq([392, 330, 262, 196], 0.16, "saw", 0.06)),
 		"click": _render([tone(700, 0.04, "square", 0.04)]),
+		"intro": _render(seq([392, 523, 659, 784], 0.16, "triangle", 0.06) + [tone(1047, 0.7, "triangle", 0.05, 0.0, 0.64)]),
+		"tick": _render([tone(1200, 0.03, "triangle", 0.03)]),
+		"pause": _render([tone(520, 0.06, "triangle", 0.06), tone(390, 0.08, "triangle", 0.05, 0.0, 0.06)]),
 		"magic": _render(seq([784, 988, 1175, 1568, 1976], 0.06, "triangle", 0.07)),
 	}
 

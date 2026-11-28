@@ -23,9 +23,21 @@ Ohne Editor aus dem Terminal: `godot --path godot`
 | ↑ / ↓ an der Sprossenwand | Steuerkreuz | Klettern. Mit Richtung + Sprung seitlich abspringen |
 | X oder J | X / B | Lineal-Hieb bzw. Hammer |
 | M | | Ton an/aus |
-| Esc | Start | Zurück |
+| Esc | Start | Pause (im Spiel), sonst zurück |
 
-Auf Handy und Tablet erscheinen Touch-Buttons (am PC zum Testen mit `--touch`).
+**Handy und Tablet** (am PC zum Testen mit `--touch`, die Maus ist dann der Finger):
+- **Linke Bildschirmhälfte: Stick.** Wo der Daumen aufsetzt, erscheint er; zieht man weiter, wandert er mit. Links/rechts laufen, nach oben an der Sprossenwand klettern (springt nicht), nach unten ducken.
+- **Rechts: zwei große Knöpfe.** Springen (außen, groß) und Hieb (mit dem Waffen-Symbol der Figur). Man muss sie nicht genau treffen: jede Berührung rechts zählt für den näheren Knopf, und man kann mit dem Daumen von einem zum anderen rollen.
+- Oben rechts ist der **Pause-Knopf**. Geht die App in den Hintergrund (Anruf, Home-Taste), pausiert das Spiel von selbst.
+- Bei einem Treffer vibriert das Handy kurz. Kerben/Notches werden berücksichtigt; auf Breitbild-Handys nutzt das Spiel die ganze Breite.
+
+## Aufbau und Design
+- **Intro** beim Start: „an evolvimus production“ und „by Nikola Kostic“ (`scripts/screens/intro.gd`, Tippen überspringt).
+- **Hauptmenü:** großer „Spielen“-Button, der direkt mit dem nächsten offenen Level weitermacht, darunter Kacheln für Schulplan, Figuren, Lexikon, Code und Shop; rechts die gewählte Figur.
+- **Schulplan:** ein Kapitel pro Seite (wischen, Pfeile oder ← →), Stationen als Weg, unten Infos und „Spielen“. Schwierigkeit oben rechts als Umschalter.
+- **Figuren / Shop / Lexikon:** links groß die angetippte Figur bzw. der Gegner, rechts das Raster.
+- **Im Spiel:** schlanke Anzeigen oben (Leben, Blätter, Hefte, Zeit, Pause), Levelname kurz eingeblendet, Pausenmenü (Weiter, Neu starten, Schulplan, Ton).
+- Alle Farben, Buttons, Panels, Chips und Karten stehen zentral in `scripts/ui/ui.gd`. Die Menüs sind für 960×540 gebaut und werden auf breiteren Bildschirmen mittig gesetzt.
 
 ## Inhalt
 - **Tutorial „Erster Schultag“**
@@ -152,8 +164,11 @@ Startoptionen (nach `--`), z. B. `godot --path godot -- --level=2 --char=lehrer0
 | `--unlock-all` | alle Figuren freischalten |
 | `--fresh` | leerer Spielstand, nichts wird gespeichert |
 | `--difficulty=X` | `entspannt`, `normal` oder `abi` |
-| `--touch` | Touch-Buttons am PC anzeigen |
-| `--screen=NAME` | direkt `menu`, `levels`, `album`, `redeem`, `shop` oder `lexikon` öffnen |
+| `--touch` | Touch-Steuerung am PC anzeigen (Maus = Finger) |
+| `--screen=NAME` | direkt `intro`, `menu`, `levels`, `album`, `redeem`, `shop` oder `lexikon` öffnen |
+| `--no-intro` | ohne Intro ins Menü |
+| `--pause-test` | im Spiel nach 1 s das Pausenmenü öffnen |
+| `--touch-probe` | mit `--level=1 --touch`: simulierter Finger testet Stick und Sprung, gibt `TOUCH_RESULT …` aus |
 | `--bot --quit` | ein Testbot spielt das Level und gibt `BOT_RESULT …` aus |
 
 `./tests/run_bots.sh` lässt den Bot alle Level mit drei Figuren spielen und meldet, ob alles lösbar ist.

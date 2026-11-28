@@ -85,11 +85,15 @@ var _hud_time: Label
 var _hud_attempts: Label
 var _boss_bar: Control
 var _boss_fill: Panel
+var _touch: TouchControls
+var _pause: PauseMenu
+var _vw := 960.0
 
 
 # ====================================================================== Aufbau
 
 func _ready() -> void:
+	_vw = UI.vw()
 	level_index = clampi(int(params.get("level", 0)), 0, Levels.list.size() - 1)
 	level = Levels.list[level_index]
 	grid = level["map"]
@@ -134,11 +138,14 @@ func _ready() -> void:
 	_flash.color = Color(1, 0.3, 0.3, 0)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.add_child(_flash)
-	_flash.size = Vector2(960, 540)
+	_flash.size = Vector2(_vw, 540)
 	if level.has("tutorial"):
 		_tutorial = Tutorial.new()
 		add_child(_tutorial)
 		_tutorial.setup(self, level["tutorial"], _overlay, Nav.touch_enabled(), _weapon_name(c))
+	_level_banner(c)
+	if Nav.args.has("pause-test"):
+		get_tree().create_timer(1.0).timeout.connect(_open_pause)
 
 
 func _weapon_name(c: Dictionary) -> String:
@@ -384,8 +391,8 @@ func _floor_below(col: int, row: int) -> float:
 
 func _build_hints(c: Dictionary) -> void:
 	var touch := Nav.touch_enabled()
-	var keys := { "LAUFEN": "< >" if touch else "PFEILTASTEN", "SPRINGEN": "^" if touch else "LEERTASTE",
-		"HOCH": "^" if touch else "PFEIL HOCH", "HIEB": "X", "WAFFE": _weapon_name(c) }
+	var keys := { "LAUFEN": "STICK LINKS" if touch else "PFEILTASTEN", "SPRINGEN": "SPRUNG-KNOPF" if touch else "LEERTASTE",
+		"HOCH": "STICK NACH OBEN" if touch else "PFEIL HOCH", "HIEB": "HIEB-KNOPF" if touch else "X", "WAFFE": _weapon_name(c) }
 	for h in level["hints"]:
 		var text: String = h[2]
 		for k in keys:
@@ -395,12 +402,11 @@ func _build_hints(c: Dictionary) -> void:
 		l.z_index = 3
 		l.add_theme_font_size_override("font_size", 10)
 		l.add_theme_constant_override("line_spacing", 6)
-		var bg := StyleBoxFlat.new()
-		bg.bg_color = Color(0.043, 0.043, 0.051, 0.8)
-		bg.content_margin_left = 8
-		bg.content_margin_right = 8
-		bg.content_margin_top = 6
-		bg.content_margin_bottom = 6
+		var bg := UI.box(Color(0.05, 0.06, 0.14, 0.82), 10, 2, Color(UI.YELLOW, 0.5), 0)
+		bg.content_margin_left = 12
+		bg.content_margin_right = 12
+		bg.content_margin_top = 9
+		bg.content_margin_bottom = 9
 		l.add_theme_stylebox_override("normal", bg)
 		add_child(l)
 		l.position = Vector2(h[0], h[1])
@@ -429,40 +435,50 @@ func _build_hud(c: Dictionary) -> void:
 	_hud = Control.new()
 	UI.screen(_hud)
 	layer.add_child(_hud)
-	UI.rect(_hud, Rect2(0, 0, 960, BAR), Color.BLACK)
-	UI.rect(_hud, Rect2(0, BAR, 960, 3), Color("#2c2c31"))
+	var e := UI.edges()
+	var pill := Color(0.05, 0.06, 0.14, 0.78)
+	# links: Porträt und Leben
+	var lx := e.x + 14
+	var lw := 66.0 + _max_lives * 30.0
+	UI.rect(_hud, Rect2(lx, 12, lw, 56), pill, 2, UI.LINE, 28)
 	var portrait := Panel.new()
-	var ps := StyleBoxFlat.new()
-	ps.bg_color = Color("#1c1c22")
-	ps.border_color = Color("#6b4426")
-	ps.set_border_width_all(3)
-	ps.set_corner_radius_all(27)
-	portrait.add_theme_stylebox_override("panel", ps)
+	portrait.add_theme_stylebox_override("panel", UI.box(Color("#1d2246"), 22, 2, Art.col(Chars.RARITY_COLOR[c["rarity"]]), 0))
 	portrait.clip_contents = true
 	_hud.add_child(portrait)
-	portrait.position = Vector2(15, 9)
-	portrait.size = Vector2(54, 54)
-	UI.fit(portrait, "bust-" + c["id"], Vector2(27, 31), Vector2(46, 46))
+	portrait.position = Vector2(lx + 6, 18)
+	portrait.size = Vector2(44, 44)
+	UI.fit(portrait, "bust-" + c["id"], Vector2(22, 26), Vector2(38, 38))
 	_hud_lives.clear()
 	for i in _max_lives:
-		_hud_lives.append(UI.image(_hud, "leaf-green", Vector2(96 + i * 36, 26), 1.5))
-	_hud_attempts = UI.label(_hud, "", Vector2(80, 50), 8, Color("#9a9aa8"), HORIZONTAL_ALIGNMENT_LEFT, 220)
-	UI.image(_hud, "leaf", Vector2(300, 38), 1.6)
-	_hud_leaves = UI.label(_hud, "", Vector2(324, 28), 16, Color("#ffd23f"), HORIZONTAL_ALIGNMENT_LEFT, 150)
+		_hud_lives.append(UI.image(_hud, "leaf-green", Vector2(lx + 72 + i * 30, 40), 1.25))
+	_hud_attempts = UI.label(_hud, "", Vector2(lx + 10, 76), 7, Color("#ff9fb0"), HORIZONTAL_ALIGNMENT_LEFT, 240)
+	UI.outline(_hud_attempts, 4)
+	# Mitte: Blätter (und Geheimhefte)
+	var cw := 300.0 if _hefte.size() > 0 else 180.0
+	var cx := 480.0 - cw / 2
+	UI.rect(_hud, Rect2(cx, 16, cw, 48), pill, 2, UI.LINE, 24)
+	UI.image(_hud, "leaf", Vector2(cx + 34, 40), 1.4)
+	_hud_leaves = UI.label(_hud, "", Vector2(cx + 56, 33), 14, Color("#ffd23f"), HORIZONTAL_ALIGNMENT_LEFT, 120)
 	if _hefte.size() > 0:
-		UI.image(_hud, "heft", Vector2(462, 37), 2.4)
-		_hud_hefte = UI.label(_hud, "", Vector2(480, 28), 16, Color("#8fb4ff"), HORIZONTAL_ALIGNMENT_LEFT, 80)
-	_hud_time = UI.label(_hud, "", Vector2(560, 28), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 200)
-	UI.label(_hud, "%s · %s" % [Levels.label(level_index), level["name"]], Vector2(944, 14), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, 300)
-	UI.label(_hud, c["name"], Vector2(944, 32), 9, Color("#9a9aa8"), HORIZONTAL_ALIGNMENT_RIGHT, 300)
-	UI.label(_hud, _diff["label"], Vector2(944, 48), 8, Color("#ffcc33"), HORIZONTAL_ALIGNMENT_RIGHT, 300)
+		UI.image(_hud, "heft", Vector2(cx + 196, 40), 2.2)
+		_hud_hefte = UI.label(_hud, "", Vector2(cx + 214, 33), 14, Color("#8fb4ff"), HORIZONTAL_ALIGNMENT_LEFT, 80)
+	# rechts: Zeit und Pause
+	var pause := UI.icon_button(_hud, "icon-pause", Vector2(e.y - 42, 40), _open_pause, 52, 2.4)
+	pause.focus_mode = Control.FOCUS_NONE
+	pause.add_theme_stylebox_override("normal", UI.box(pill, 26, 2, UI.LINE))
+	pause.add_theme_stylebox_override("hover", UI.box(Color("#262c5a"), 26, 2, Color("#4a5394")))
+	var tw := 116.0
+	UI.rect(_hud, Rect2(e.y - 82 - tw, 16, tw, 48), pill, 2, UI.LINE, 24)
+	UI.image(_hud, "icon-clock", Vector2(e.y - 82 - tw + 24, 40), 2.0)
+	_hud_time = UI.label(_hud, "", Vector2(e.y - 82 - tw + 42, 34), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 80)
 	if boss:
 		_boss_bar = Control.new()
 		_hud.add_child(_boss_bar)
 		_boss_bar.visible = false
-		UI.rect(_boss_bar, Rect2(272, 84, 416, 44), Color(0.043, 0.043, 0.051, 0.9), 3, Color("#ff3d7f"))
-		UI.label(_boss_bar, "BOSS · DER KOPIERER", Vector2(480, 92), 9, Color("#ff8a8a"))
-		_boss_fill = UI.rect(_boss_bar, Rect2(282, 108, 396, 12), Color("#ff3d7f"))
+		UI.rect(_boss_bar, Rect2(290, 76, 380, 40), pill, 2, Color("#ff5c8a"), 20)
+		UI.label(_boss_bar, "DER KOPIERER", Vector2(316, 90), 8, Color("#ff9fb0"), HORIZONTAL_ALIGNMENT_LEFT, 140)
+		UI.rect(_boss_bar, Rect2(430, 89, 222, 14), Color("#2a1022"), 0, Color.TRANSPARENT, 7)
+		_boss_fill = UI.rect(_boss_bar, Rect2(430, 89, 222, 14), Color("#ff5c8a"), 0, Color.TRANSPARENT, 7)
 	_refresh_hud()
 
 
@@ -478,19 +494,73 @@ func _refresh_hud() -> void:
 	_hud_attempts.text = "" if _tutorial or attempts == 0 else "Fehlversuche: %d" % attempts
 
 
-## Touch-Buttons (Handy/Tablet oder mit --touch)
-func _build_touch() -> void:
-	if not Nav.touch_enabled():
+## Levelname kurz einblenden
+func _level_banner(c: Dictionary) -> void:
+	if _bot or _tutorial:
 		return
-	for b in [[70, "<", "move_left"], [180, ">", "move_right"], [660, "v", "move_down"], [770, "X", "attack"], [880, "^", "jump"]]:
-		var t := TouchScreenButton.new()
-		t.texture_normal = Art.tex("touch")
-		t.scale = Vector2(3, 3)
-		t.position = Vector2(b[0] - 45, 478 - 45)
-		t.action = b[2]
-		t.passby_press = true
-		_hud.get_parent().add_child(t)
-		UI.label(_hud, b[1], Vector2(b[0], 468), 20)
+	var b := Control.new()
+	UI.screen(b)
+	_overlay.add_child(b)
+	var p := UI.panel(b, Rect2(250, 110, 460, 96), UI.YELLOW)
+	var tag_text := "TUTORIAL" if level.get("kind", "") == "tutorial" else Levels.label(level_index)
+	var t := UI.tag(p, tag_text, Vector2.ZERO, UI.YELLOW, 8)
+	t.position = Vector2(230 - t.size.x / 2, 14)
+	UI.label(p, level["name"], Vector2(230, 44), 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 440)
+	UI.label(p, "%s · %s" % [c["name"], _diff["label"]], Vector2(230, 70), 7, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 440)
+	b.modulate.a = 0.0
+	var tw := b.create_tween()
+	tw.tween_interval(0.2)
+	tw.tween_property(b, "modulate:a", 1.0, 0.25)
+	tw.tween_interval(1.8)
+	tw.tween_property(b, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(b.queue_free)
+
+
+## Touch-Steuerung (Handy/Tablet oder mit --touch)
+func _build_touch() -> void:
+	if not Nav.touch_enabled() or _bot:
+		return
+	var layer := CanvasLayer.new()
+	layer.layer = 11
+	add_child(layer)
+	_touch = TouchControls.new()
+	layer.add_child(_touch)
+	_touch.setup(Chars.get_char(Save.data["selected"])["weapon"])
+
+
+# ====================================================================== Pause
+
+func _open_pause() -> void:
+	if _done or _pause or _bot:
+		return
+	Sfx.play("pause")
+	if _touch:
+		_touch.release_all()
+	for a in ["move_left", "move_right", "move_up", "move_down", "jump", "attack"]:
+		Input.action_release(a)
+	var layer := CanvasLayer.new()
+	layer.layer = 30
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(layer)
+	_pause = PauseMenu.new()
+	layer.add_child(_pause)
+	var c := Chars.get_char(Save.data["selected"])
+	_pause.build("%s · %s" % [Levels.label(level_index), level["name"]], c["name"], _diff["label"])
+	_pause.resume.connect(func():
+		Sfx.play("click")
+		layer.queue_free()
+		_pause = null
+		get_tree().paused = false)
+	_pause.restart.connect(func(): Nav.goto("game", { "level": level_index }))
+	_pause.quit_to_map.connect(func(): Nav.goto("levels", { "focus": level_index }))
+	get_tree().paused = true
+
+
+func _notification(what: int) -> void:
+	# App geht in den Hintergrund (Anruf, Home-Taste): automatisch pausieren
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
+		if is_inside_tree() and player:
+			_open_pause()
 
 
 # ====================================================================== Hilfen für Gegner, Tutorial und Bot
@@ -549,11 +619,11 @@ func damage_player(from_x: float) -> void:
 
 
 func on_screen(x: float, margin := 100.0) -> bool:
-	return absf(x - _cam.get_screen_center_position().x) < 480 + margin
+	return absf(x - _cam.get_screen_center_position().x) < _vw / 2 + margin
 
 
 func view_rect() -> Rect2:
-	return Rect2(_cam.get_screen_center_position() - Vector2(480, 270), Vector2(960, 540))
+	return Rect2(_cam.get_screen_center_position() - Vector2(_vw / 2, 270), Vector2(_vw, 540))
 
 
 func enemy_defeated(e, at_pos: Vector2) -> void:
@@ -655,17 +725,15 @@ func _controls() -> Dictionary:
 	var near_ladder := player.climbing or ladder_at(player.position) or ladder_at(Vector2(player.position.x, player.bottom() - 4))
 	var up_key := Input.is_action_pressed("move_up")
 	var jump_key := Input.is_action_pressed("jump")
-	var touch := Nav.touch_enabled()
 	var left := Input.is_action_pressed("move_left")
 	var right := Input.is_action_pressed("move_right")
-	var climb_key := up_key or (touch and jump_key)
+	# Touch-Stick nach oben klettert nur (springt nicht, damit schräges Schieben keinen Sprung auslöst)
+	var climb_key := up_key or (_touch != null and _touch.up)
 	if climb_key and near_ladder:
 		_up_latched = true
 	if not climb_key:
 		_up_latched = false
 	var jump := jump_key or (up_key and not _up_latched)
-	if touch:  # am Handy ist der Sprung-Button an der Sprossenwand „hoch“; mit Richtung springt man ab
-		jump = jump_key and (not _up_latched or (player.climbing and left != right))
 	return {
 		"left": left, "right": right, "jump": jump,
 		"attack": Input.is_action_pressed("attack"),
@@ -675,7 +743,7 @@ func _controls() -> Dictionary:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("back") and not _done:
-		Nav.goto("levels")
+		_open_pause()
 	elif event.is_action_pressed("mute"):
 		Sfx.toggle_mute()
 
@@ -726,7 +794,7 @@ func _physics_process(delta: float) -> void:
 	if player.position.x > _goal.x - 60 and absf(player.bottom() - _goal.y) < 30 and player.on_ground() and not _done:
 		_finish()
 	_hud_leaves.text = "%d/%d" % [collected, _total]
-	_hud_time.text = "ZEIT %.1f" % (now / 1000.0)
+	_hud_time.text = "%.1f" % (now / 1000.0)
 
 
 func _cam_target() -> Vector2:
@@ -738,8 +806,8 @@ func _process(_delta: float) -> void:
 		var target := _cam_target()
 		_cam.position = Vector2(lerpf(_cam.position.x, target.x, 0.14), lerpf(_cam.position.y, target.y, 0.1))
 	_cam.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake_amount if now < _shake_until else Vector2.ZERO
-	var corner := _cam.get_screen_center_position() - Vector2(480, 270)
-	_bg.region_rect = Rect2(corner.x * 0.5 / 3.0, (corner.y - (_floor_line - 405)) / 3.0, 320, 180)
+	var corner := _cam.get_screen_center_position() - Vector2(_vw / 2, 270)
+	_bg.region_rect = Rect2(corner.x * 0.5 / 3.0, (corner.y - (_floor_line - 405)) / 3.0, _vw / 3.0, 180)
 	if _bot:
 		_report_state()
 
@@ -887,7 +955,7 @@ func _update_arenas() -> void:
 			"active":
 				if a["boss"]:
 					var b: Enemies.Copier = a["boss"]
-					_boss_fill.size.x = 396.0 * maxf(0, b.hp) / Enemies.Copier.MAX_HP
+					_boss_fill.size.x = 222.0 * maxf(0, b.hp) / Enemies.Copier.MAX_HP
 					if not b.alive:
 						_clear_arena(a)
 					continue
@@ -988,21 +1056,25 @@ func _discover_enemies() -> void:
 func _next_toast() -> void:
 	if _toast_busy or _done or _toasts.is_empty():
 		return
+	if now < 2700 and not _tutorial:  # erst, wenn der Levelname wieder weg ist
+		get_tree().create_timer(0.5).timeout.connect(_next_toast)
+		return
 	var info := Bestiary.find(_toasts.pop_front())
 	if info.is_empty():
 		return
 	_toast_busy = true
-	var y := 196.0 if _tutorial and _tutorial.y < 300 else 112.0
-	var box := UI.rect(_overlay, Rect2(960 + 20, y - 29, 330, 58), Color(0.043, 0.043, 0.051, 0.92), 3, Color("#5ab0ff"))
+	var y := 210.0 if _tutorial and _tutorial.y < 300 else 120.0
+	var right := _vw - UI.safe_insets().y - 16
+	var box := UI.panel(_overlay, Rect2(_vw + 20, y - 30, 300, 60), UI.BLUE)
 	box.theme = UI.theme()
-	UI.fit(box, info["icon"], Vector2(36, 29), Vector2(44, 40))
-	UI.label(box, "NEU IM LEXIKON", Vector2(70, 14), 9, Color("#5ab0ff"), HORIZONTAL_ALIGNMENT_LEFT, 250)
-	UI.label(box, info["name"], Vector2(70, 30), 13, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 250)
+	UI.fit(box, info["icon"], Vector2(38, 30), Vector2(44, 40))
+	UI.label(box, "NEU IM LEXIKON", Vector2(72, 14), 7, UI.BLUE, HORIZONTAL_ALIGNMENT_LEFT, 220)
+	UI.label(box, info["name"], Vector2(72, 30), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 220)
 	Sfx.play("checkpoint")
 	var tw := box.create_tween()
-	tw.tween_property(box, "position:x", 940 - 330, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(box, "position:x", right - 300, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(2.4)
-	tw.tween_property(box, "position:x", 960 + 20, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(box, "position:x", _vw + 20, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func():
 		box.queue_free()
 		_toast_busy = false
@@ -1054,6 +1126,8 @@ func _hurt(from_x: float) -> void:
 		player.lives = _max_lives
 		return
 	_hits += 1
+	if _touch:
+		Input.vibrate_handheld(60)
 	fx.burst(player.position, Color("#ff5a5a"), 10)
 	shake(180, 0.012)
 	if player.lives >= 0 and player.lives < _hud_lives.size():
@@ -1096,16 +1170,17 @@ func _fail(fell: bool) -> void:
 
 # ====================================================================== Levelende
 
-func _panel(title_text: String, body: String) -> Control:
+func _panel(title_text: String) -> Control:
 	var root := Control.new()
 	UI.screen(root)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	_overlay.add_child(root)
-	UI.rect(root, Rect2(_panel_x - 270, 104, 540, 376), Color(0.043, 0.043, 0.051, 0.95), 4, UI.YELLOW)
-	UI.label(root, title_text, Vector2(_panel_x, 126), 22, UI.YELLOW)
-	var l := UI.label(root, body, Vector2(_panel_x, 176), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 500)
-	l.add_theme_constant_override("line_spacing", 10)
-	return root
+	var p := UI.panel(root, Rect2(_panel_x - 270, 70, 540, 420), UI.YELLOW)
+	p.name = "Panel"
+	var t := UI.label(p, title_text, Vector2(270, 26), 18, UI.YELLOW, HORIZONTAL_ALIGNMENT_CENTER, 520)
+	UI.outline(t, 6)
+	UI.pop_in(p, 0.0, 20)
+	return p
 
 
 ## Ziel erreicht: Die gesammelten Blätter fliegen in die Krone und der Ginkgo wird golden.
@@ -1172,34 +1247,54 @@ func _show_result(seconds: float) -> void:
 	Save.data["coins"] = int(Save.data["coins"]) + reward
 	Save.persist()
 
-	var lines := ["Blätter: %d/%d" % [collected, _total]]
+	var p := _panel("Der Ginkgo leuchtet!" if earned["leaves"] else "Geschafft!")
+	UI.label(p, "%s · %s" % [Levels.label(level_index), level["name"]], Vector2(270, 58), 8, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 520)
+	# Werte als Pillen
+	var stats := [["leaf", "%d/%d" % [collected, _total], Color("#ffd23f")]]
 	if _hefte.size() > 0:
 		var have := 0
 		for h in _hefte:
 			if h["had"] or h["taken"]:
 				have += 1
-		lines.append("Geheimhefte: %d/%d" % [have, _hefte.size()])
-	lines.append("Zeit: %.1fs%s  (Ziel: %ds)" % [seconds, " BESTZEIT!" if new_best else "", int(par)])
+		stats.append(["heft", "%d/%d" % [have, _hefte.size()], Color("#8fb4ff")])
+	stats.append(["icon-clock", "%.1fs" % seconds, Color.WHITE])
 	if not _tutorial:
-		lines.append("Fehlversuche: %d" % attempts)
-	lines.append("+%d Ginkgo-Taler" % reward)
-	var root := _panel("Der Ginkgo leuchtet!" if earned["leaves"] else "Geschafft!", "\n".join(lines))
+		stats.append(["icon-restart", "%d" % attempts, Color("#ff9fb0") if attempts > 0 else Color.WHITE])
+	var chips: Array[PanelContainer] = []
+	var total_w := -10.0
+	for st in stats:
+		var ch := UI.chip(p, st[0], st[1], 0, 104, st[2], 10)
+		chips.append(ch)
+		total_w += ch.size.x + 10
+	var x := 270 - total_w / 2
+	for ch in chips:
+		ch.position.x = x
+		x += ch.size.x + 10
+	var info := "Zielzeit %ds" % int(par)
+	if new_best:
+		info = "NEUE BESTZEIT! · " + info
+	UI.label(p, info, Vector2(270, 130), 7, UI.GREEN if new_best else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 520)
+	# Medaillen
 	for i in MEDALS.size():
 		var key: String = MEDALS[i][0]
-		var mx := _panel_x + (i - 1) * 150.0
-		var icon := UI.image(root, "medal-" + key, Vector2(mx, 322), 3.0)
+		var mx := 270 + (i - 1) * 150.0
+		var icon := UI.image(p, "medal-" + key, Vector2(mx, 196), 4.0)
 		var has: bool = medals.get(key, false)
 		if not has:
-			icon.modulate = Color(0.25, 0.25, 0.3)
+			icon.modulate = Color(0.22, 0.24, 0.36)
 		elif earned[key]:
 			icon.pivot_offset = icon.size / 2
 			icon.scale = Vector2(0.2, 0.2)
-			icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.2 + i * 0.25)
-		UI.label(root, MEDALS[i][1], Vector2(mx, 344), 8, Color.WHITE if has else Color("#666c88"), HORIZONTAL_ALIGNMENT_CENTER, 150)
+			icon.create_tween().tween_property(icon, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.3 + i * 0.25)
+		UI.label(p, MEDALS[i][1], Vector2(mx, 230), 7, Color.WHITE if has else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 150)
+	# Belohnung
+	var reward_chip := UI.chip(p, "icon-coin", "+%d Ginkgo-Taler" % reward, 0, 280, Color("#ffd23f"), 12)
+	reward_chip.position.x = 270 - reward_chip.size.x / 2
+	# Buttons
 	var next := Levels.next_index(level_index)
-	var first := UI.button(root, "Weiter" if next >= 0 else "Nochmal", Vector2(_panel_x - 125, 430),
-		func(): Nav.goto("game", { "level": next if next >= 0 else level_index }), 220, 50)
-	UI.button(root, "Schulplan", Vector2(_panel_x + 125, 430), func(): Nav.goto("levels", { "focus": level_index }), 220, 50)
+	var first := UI.primary(p, "Weiter" if next >= 0 else "Nochmal", Vector2(270, 342), func(): Nav.goto("game", { "level": next if next >= 0 else level_index }), 300, 60)
+	UI.button(p, "Schulplan", Vector2(196, 392), func(): Nav.goto("levels", { "focus": level_index }), 148, 40).add_theme_font_size_override("font_size", 9)
+	UI.button(p, "Nochmal", Vector2(344, 392), func(): Nav.goto("game", { "level": level_index }), 148, 40).add_theme_font_size_override("font_size", 9)
 	first.grab_focus.call_deferred()
 	_report("win")
 

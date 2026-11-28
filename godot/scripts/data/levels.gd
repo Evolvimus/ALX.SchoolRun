@@ -38,18 +38,19 @@ const CHAPTERS := [
 	] },
 ]
 
-## Tutorial-Aufgaben je Level-ID: { at = Spalte, ab der sie erscheint, text, done = { type = ... }, opens_door }
+## Tutorial-Aufgaben je Level-ID: { at = Spalte, ab der sie erscheint, text, touch (Text am Handy, optional),
+##                                  done = { type = ... }, opens_door }
 ##   done.type: "col" (Spalte erreicht), "leaves" (Anzahl Blätter), "checkpoint", "defeat" (Gegnerart, "" = Übungsscheibe),
 ##              "timer" (Millisekunden), "goal"
 const TUTORIALS := {
 	"tutorial": [
-		{ "at": 0, "text": "Willkommen am ALX!\nLaufe mit {LAUFEN} nach rechts.", "done": { "type": "col", "col": 6 } },
-		{ "at": 5, "text": "Spring mit {SPRINGEN} über die Lücke.", "done": { "type": "col", "col": 12 } },
-		{ "at": 12, "text": "Halte {SPRINGEN} gedrückt:\nJe länger, desto höher springst du.", "done": { "type": "col", "col": 18 } },
+		{ "at": 0, "text": "Willkommen am ALX!\nLaufe mit {LAUFEN} nach rechts.", "touch": "Willkommen am ALX!\nSchieb den Stick links nach rechts.", "done": { "type": "col", "col": 6 } },
+		{ "at": 5, "text": "Spring mit {SPRINGEN} über die Lücke.", "touch": "Tipp auf den Sprung-Knopf\nund spring über die Lücke.", "done": { "type": "col", "col": 12 } },
+		{ "at": 12, "text": "Halte {SPRINGEN} gedrückt:\nJe länger, desto höher springst du.", "touch": "Halte den Sprung-Knopf gedrückt:\nJe länger, desto höher springst du.", "done": { "type": "col", "col": 18 } },
 		{ "at": 18, "text": "Sammle die goldenen Ginkgoblätter!", "done": { "type": "leaves", "count": 9 } },
 		{ "at": 27, "text": "Ein Setzling! Lauf hindurch:\nNach einem Fehlversuch geht es hier weiter.", "done": { "type": "checkpoint" } },
-		{ "at": 30, "text": "Hau die Übungsscheibe um: {HIEB}", "done": { "type": "defeat", "kind": "" }, "opens_door": true },
-		{ "at": 36, "text": "Eine Staubmaus!\nSpring drauf oder schlag mit {HIEB} zu.", "done": { "type": "defeat", "kind": "mouse" }, "opens_door": true },
+		{ "at": 30, "text": "Hau die Übungsscheibe um: {HIEB}", "touch": "Hau die Übungsscheibe um:\nTipp auf den Hieb-Knopf.", "done": { "type": "defeat", "kind": "" }, "opens_door": true },
+		{ "at": 36, "text": "Eine Staubmaus!\nSpring drauf oder schlag mit {HIEB} zu.", "touch": "Eine Staubmaus! Spring drauf\noder hau mit dem Hieb-Knopf zu.", "done": { "type": "defeat", "kind": "mouse" }, "opens_door": true },
 		{ "at": 46, "text": "Jeden neuen Gegner findest du\nim Gegner-Lexikon im Menü.", "done": { "type": "timer", "ms": 3500 } },
 		{ "at": 49, "text": "Blaue Turnmatten federn dich hoch!", "done": { "type": "col", "col": 58 } },
 		{ "at": 58, "text": "Bring deine Blätter zum großen Ginkgo!", "done": { "type": "goal" } },

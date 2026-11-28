@@ -19,21 +19,23 @@ var _style: StyleBoxFlat
 var _text: Label
 var _check: TextureRect
 var _keys := {}
+var _touch := false
 
 
 func setup(g: Game, step_list: Array, layer: CanvasLayer, touch: bool, weapon_name: String) -> void:
 	game = g
 	steps = step_list
-	y = 122.0 if touch else 466.0
-	_keys = { "LAUFEN": "< >" if touch else "PFEILTASTEN", "SPRINGEN": "^" if touch else "LEERTASTE", "HIEB": "X", "WAFFE": weapon_name }
+	_touch = touch
+	y = 150.0 if touch else 466.0
+	_keys = { "LAUFEN": "PFEILTASTEN", "SPRINGEN": "LEERTASTE", "HIEB": "X", "WAFFE": weapon_name }
 	_box = Panel.new()
-	_style = StyleBoxFlat.new()
-	_style.bg_color = Color(0.043, 0.043, 0.051, 0.88)
-	_style.set_border_width_all(3)
+	_style = UI.box(Color(0.05, 0.06, 0.14, 0.9), 14, 3, UI.YELLOW)
+	_style.shadow_color = Color(0, 0, 0, 0.35)
+	_style.shadow_size = 8
 	_box.add_theme_stylebox_override("panel", _style)
 	layer.add_child(_box)
 	_text = Label.new()
-	_text.add_theme_font_size_override("font_size", 12)
+	_text.add_theme_font_size_override("font_size", 11)
 	_text.add_theme_constant_override("line_spacing", 9)
 	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -64,12 +66,12 @@ func _show(i: int) -> void:
 		_box.visible = false
 		return
 	_box.visible = true
-	_text.text = fill(steps[i]["text"])
+	_text.text = fill(steps[i].get("touch", steps[i]["text"]) if _touch else steps[i]["text"])
 	_text.add_theme_color_override("font_color", Color.WHITE)
 	_style.border_color = UI.YELLOW
 	var size := _text.get_minimum_size()
 	_box.size = Vector2(maxf(420, size.x + 110), size.y + 30)
-	_box.position = Vector2(480 - _box.size.x / 2, y - _box.size.y / 2)
+	_box.position = Vector2(UI.vw() / 2 - _box.size.x / 2, y - _box.size.y / 2)
 	_text.position = Vector2.ZERO
 	_text.size = _box.size
 	_check.position = Vector2(16, _box.size.y / 2 - _check.size.y / 2)
