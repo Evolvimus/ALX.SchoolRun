@@ -199,7 +199,7 @@ func _render_chunk() -> void:
 	var bytes := PackedByteArray()
 	bytes.resize(n * 2)
 	for i in n:
-		bytes.encode_s16(i * 2, int(clampf(_mix[i], -1.0, 1.0) * 32767.0))
+		bytes.encode_s16(i * 2, int(clampf(_mix[i] * 1.8, -1.0, 1.0) * 32767.0))
 	_mix = PackedFloat32Array()
 	var wav := AudioStreamWAV.new()
 	wav.format = AudioStreamWAV.FORMAT_16_BITS
@@ -209,6 +209,9 @@ func _render_chunk() -> void:
 	wav.loop_begin = 0
 	wav.loop_end = n
 	_streams[_job["name"]] = wav
+	for a in OS.get_cmdline_user_args():  # --export-music=ORDNER: Stücke als WAV speichern (Hörproben)
+		if a.begins_with("--export-music="):
+			wav.save_to_wav(a.get_slice("=", 1).path_join(_job["name"] + ".wav"))
 	if "--music-timing" in OS.get_cmdline_user_args():
 		print("MUSIC_READY %s %.1fs after %d ms" % [_job["name"], n / float(RATE), Time.get_ticks_msec()])
 	var done: String = _job["name"]
