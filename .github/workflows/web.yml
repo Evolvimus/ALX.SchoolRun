@@ -1,0 +1,79 @@
+# Baut die Browser-Version (Godot „Web“-Export) und stellt sie auf GitHub Pages.
+# Einmalig nötig: GitHub → Settings → Pages → Source: „GitHub Actions“.
+# Optional (für echte Karten-Codes statt Testmodus): Repository-Secrets SUPABASE_URL und SUPABASE_ANON_KEY.
+name: Browser-Version
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.3-stable
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot und Exportvorlagen laden
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip
+          sudo mv "Godot_v${GODOT_VERSION}_linux.x86_64" /usr/local/bin/godot
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION/-/.}"
+          mkdir -p "$dir"
+          unzip -q -j templates.tpz 'templates/web_*' 'templates/version.txt' -d "$dir"
+          ls "$dir"
+
+      - name: Server-Zugang eintragen (falls Secrets gesetzt)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            mkdir -p godot/config
+            printf '[supabase]\nurl="%s"\nanon_key="%s"\n' "$SUPABASE_URL" "$SUPABASE_ANON_KEY" > godot/config/backend.cfg
+            echo "Server verbunden."
+          else
+            echo "Keine Secrets – Browser-Version läuft im Testmodus."
+          fi
+
+      - name: Web-Export
+        run: |
+          cd godot
+          godot --headless --path . --import || true
+          mkdir -p build/web
+          godot --headless --path . --export-release "Web" build/web/index.html
+          test -f build/web/index.html
+
+      - name: Landingpage für QR-Codes dazulegen
+        run: |
+          cp web/code.html godot/build/web/code.html
+          touch godot/build/web/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: godot/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

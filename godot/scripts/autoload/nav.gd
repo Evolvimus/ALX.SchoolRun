@@ -70,6 +70,12 @@ func start() -> void:
 		_screenshot_later()
 	if args.has("touch-probe"):
 		add_child.call_deferred(load("res://tests/touch_probe.gd").new())
+	# --- Browser-Version: Link mit Karten-Code (…/index.html?code=ALX-XXXX-XXXX) öffnet direkt „Code einlösen“
+	var link_code := _web_link_code()
+	if link_code != "":
+		goto("redeem", { "code": link_code, "from": "link" })
+		return
+	# ---
 	if args.has("screen"):
 		goto(args["screen"])
 	elif args.has("level"):
@@ -81,6 +87,14 @@ func start() -> void:
 
 
 ## Bildschirm wechseln, mit kurzer Abblende (bei Tests ohne).
+## Code aus der Adresszeile (nur Browser-Version), sonst "".
+func _web_link_code() -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var raw = JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('code') || ''", true)
+	return CodeFormat.validate(str(raw)) if raw != null else ""
+
+
 func goto(screen: String, params := {}) -> void:
 	get_tree().paused = false
 	if current == null or args.has("shot") or args.has("bot") or args.has("quit"):

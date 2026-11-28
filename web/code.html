@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>ALX SchoolRun · Karten-Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1024; --panel: #151a38; --line: #2e3566; --yellow: #ffcc33; --yellow-dark: #b8860b;
+    --ink: #2b1a00; --text: #ffffff; --muted: #8d93b8; --green: #7ee08a; --red: #ff6b8a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: "Press Start 2P", ui-monospace, monospace; font-size: 12px; line-height: 1.8;
+    min-height: 100vh; display: flex; justify-content: center; padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+    background: radial-gradient(ellipse at top, #1b2150 0%, var(--bg) 60%);
+  }
+  main { width: 100%; max-width: 440px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .leaf { width: 44px; height: 38px; image-rendering: pixelated; }
+  .tag { display: inline-block; border: 2px solid var(--yellow); color: var(--yellow); border-radius: 8px; padding: 2px 8px; font-size: 10px; }
+  h1 { font-size: 18px; margin: 4px 0 0; letter-spacing: 1px; }
+  .panel { background: var(--panel); border: 2px solid var(--line); border-radius: 16px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .label { color: var(--muted); font-size: 10px; margin: 0 0 8px; }
+  .code {
+    font-size: clamp(13px, 5vw, 22px); letter-spacing: 1px; white-space: nowrap; text-align: center; background: #f4f1e6; color: var(--ink);
+    border: 3px solid var(--yellow); border-radius: 12px; padding: 18px 6px; margin: 0 0 16px;
+  }
+  .code.invalid { color: var(--red); font-size: 11px; white-space: normal; }
+  .btn {
+    display: block; width: 100%; text-align: center; text-decoration: none; cursor: pointer;
+    font: inherit; font-size: 13px; border-radius: 14px; padding: 16px 12px; margin: 0 0 12px;
+    border: 2px solid var(--line); background: #1d2246; color: var(--text);
+  }
+  .btn.primary { background: var(--yellow); color: var(--ink); border: 0; border-bottom: 6px solid var(--yellow-dark); }
+  .btn.primary:active { border-bottom-width: 2px; transform: translateY(4px); }
+  .btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .hint { color: var(--green); font-size: 10px; min-height: 18px; text-align: center; margin: -4px 0 12px; }
+  ol { padding-left: 20px; margin: 20px 0 0; color: var(--muted); font-size: 10px; }
+  ol li { margin-bottom: 10px; }
+  ol b { color: var(--text); font-weight: normal; }
+  footer { color: #3f4570; font-size: 8px; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg class="leaf" viewBox="0 0 22 19" aria-hidden="true" shape-rendering="crispEdges">
+      <path fill="#ffcc33" d="M1 3h3V2h4V1h2v2h2V1h2v1h4v1h3v3h-1v2h-2v2h-2v2h-2v2h-2v1h-2v-1H8v-2H6v-2H4V8H2V6H1z"/>
+      <path fill="#8a5a00" d="M10 15h2v2h1v2h-2v-2h-1z"/>
+    </svg>
+    <div>
+      <span class="tag">ALX</span>
+      <h1>SCHOOLRUN</h1>
+    </div>
+  </header>
+
+  <section class="panel">
+    <p class="label">Dein Karten-Code</p>
+    <div id="code" class="code">…</div>
+    <button id="copy" class="btn primary" type="button">Code kopieren</button>
+    <div id="hint" class="hint" role="status"></div>
+    <a id="app" class="btn" href="#">App öffnen</a>
+    <a id="play" class="btn" href="index.html">Im Browser spielen</a>
+
+    <ol>
+      <li><b>Code kopieren</b> antippen.</li>
+      <li>Das Spiel öffnen (App oder Browser) und auf <b>„Code einlösen“</b> gehen – der kopierte Code wird automatisch eingetragen.</li>
+      <li><b>„Einlösen“</b> antippen. Jeder Code klappt nur ein einziges Mal!</li>
+    </ol>
+  </section>
+
+  <footer>an evolvimus production</footer>
+</main>
+
+<script>
+  // Keine Cookies, kein Tracking: Die Seite liest nur den Code aus der Adresse (?c=ALX-XXXX-XXXX).
+  const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  const check = b => { let s = 0; for (let i = 0; i < b.length; i++) s += (ALPHABET.indexOf(b[i]) + 1) * (i + 3); return ALPHABET[s % ALPHABET.length]; };
+  function validate(input) {
+    let raw = String(input || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (raw.startsWith('ALX')) raw = raw.slice(3);
+    if (raw.length !== 8 || [...raw].some(ch => !ALPHABET.includes(ch)) || check(raw.slice(0, 7)) !== raw[7]) return '';
+    return `ALX-${raw.slice(0, 4)}-${raw.slice(4)}`;
+  }
+
+  const params = new URLSearchParams(location.search);
+  const code = validate(params.get('c') || params.get('code'));
+  const codeEl = document.getElementById('code');
+  const hint = document.getElementById('hint');
+  const copyBtn = document.getElementById('copy');
+
+  if (code) {
+    codeEl.textContent = code;
+    document.getElementById('app').href = 'alxschoolrun://redeem?code=' + encodeURIComponent(code);
+    document.getElementById('play').href = 'index.html?code=' + encodeURIComponent(code);
+  } else {
+    codeEl.textContent = 'Kein gültiger Code im Link.';
+    codeEl.classList.add('invalid');
+    copyBtn.disabled = true;
+    copyBtn.style.opacity = .5;
+    document.getElementById('app').style.display = 'none';
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch (e) {
+      // Fallback für ältere Browser
+      const t = document.createElement('textarea');
+      t.value = code; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      t.remove();
+    }
+    hint.textContent = 'Kopiert! Jetzt das Spiel öffnen.';
+  }
+  copyBtn.addEventListener('click', () => code && copy());
+  // „App öffnen“ kopiert vorher, damit das Spiel den Code aus der Zwischenablage übernimmt
+  document.getElementById('app').addEventListener('click', () => { if (code) copy(); });
+  document.getElementById('play').addEventListener('click', () => { if (code) copy(); });
+</script>
+</body>
+</html>
