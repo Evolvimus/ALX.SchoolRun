@@ -161,7 +161,41 @@ Ein Bild als `characters/<id>.png` (z. B. `characters/lehrer02.png`) ersetzt die
 Vorlagen für **Android, iOS, Web, Windows, macOS** stehen in `export_presets.cfg`. Vorher in Godot unter *Editor → Export-Vorlagen verwalten* die Vorlagen für 4.3 herunterladen.
 - **Android (Play Store)**: Android SDK + Java einrichten (*Editor → Editoreinstellungen → Export → Android*), Release-Keystore eintragen, als `.aab` exportieren.
 - **iOS (App Store)**: auf einem Mac mit Xcode, Apple-Team-ID im iOS-Preset eintragen.
-- **Web**: ergibt `build/web/index.html` für den PC-Browser.
+- **Web**: ergibt `build/web/index.html` für den PC-Browser (automatisch über GitHub Pages, siehe „Browser-Version“).
+
+## Browser-Version
+Die Browser-Version für den PC baut und veröffentlicht GitHub automatisch (`.github/workflows/web.yml`), sobald etwas auf `main` landet. Von Hand starten: GitHub → *Actions* → „Browser-Version“ → *Run workflow*.
+
+**Einmalig einrichten**
+1. GitHub → Repository → *Settings → Pages* → bei *Source* „**GitHub Actions**“ wählen.
+2. Optional, damit echte Karten-Codes funktionieren (sonst läuft die Browser-Version im Testmodus): *Settings → Secrets and variables → Actions* → zwei Secrets anlegen: `SUPABASE_URL` und `SUPABASE_ANON_KEY` (dieselben Werte wie in `config/backend.cfg`).
+
+Danach ist das Spiel unter `https://evolvimus.github.io/ALX.SchoolRun/` erreichbar (die genaue Adresse steht nach dem ersten Lauf unter *Settings → Pages*).
+- Der Export läuft ohne Thread-Unterstützung, deshalb braucht GitHub Pages keine besonderen Server-Header.
+- Wer `…/index.html?code=ALX-XXXX-XXXX` öffnet, landet direkt bei „Code einlösen“ mit eingetragenem Code.
+- Lokal bauen: in Godot Export „Web“ → `build/web/`, dann z. B. `python3 -m http.server --directory build/web` und `http://localhost:8000` öffnen (eine Datei per Doppelklick geht nicht).
+
+## QR-Codes und Druckvorlage
+Jede Karte bekommt auf die Rückseite einen **QR-Code** und darunter den Code zum Abtippen.
+
+**So funktioniert der QR-Code**
+1. Handykamera auf die Karte → es öffnet sich die Seite `code.html?c=ALX-…` (liegt mit der Browser-Version auf GitHub Pages, Vorlage: `web/code.html`).
+2. Dort „**Code kopieren**“ (oder „App öffnen“ / „Im Browser spielen“, beides kopiert ebenfalls).
+3. Im Spiel auf „Code einlösen“: Ein gültiger Code aus der Zwischenablage wird **automatisch eingetragen** (auch, wenn man aus einer anderen App zurückkommt). Zusätzlich gibt es den Knopf „Einfügen“. Dann „Einlösen“ tippen.
+- In der Browser-Version führt „Im Browser spielen“ direkt mit dem Code in „Code einlösen“.
+- iOS: Die App ist unter `alxschoolrun://` registriert, „App öffnen“ startet sie. Den Code aus diesem Link liest Godot 4.3 nicht selbst aus – deshalb der Weg über die Zwischenablage, der auf allen Geräten klappt.
+- Die Seite setzt keine Cookies und zählt nichts mit.
+
+**Druckvorlage erzeugen** (im Hauptordner)
+```bash
+npm install                      # einmalig
+npm run codes -- 50              # 50 Codes pro Lehrer -> codes-output/codes.csv + insert.sql (für Supabase)
+npm run cards                    # -> codes-output/karten-rueckseiten.html und .pdf
+```
+- 9 Karten im Sammelkartenformat **63 × 88 mm** pro A4-Seite, mit Schnittmarken. Beim Drucken **100 % / Originalgröße** wählen.
+- Andere Adresse für die Landingpage (z. B. eigene Domain): `npm run cards -- --base=https://meine-seite.de/spiel/` oder Umgebungsvariable `CARDS_BASE_URL`.
+- Andere CSV-Datei: `--csv=pfad.csv`, anderes Ziel: `--out=codes-output/name` (ohne Endung).
+- Lehrernamen kommen aus `scripts/data/chars.gd`. **`codes-output/` niemals committen oder teilen** – wer die Datei hat, kann alle Lehrer freischalten.
 
 ## iOS und TestFlight (iPhone + iPad)
 Das geht nur auf einem **Mac mit Xcode**. Die Exportvorlage „iOS“ ist für iPhone und iPad eingestellt (ab iOS 14), das App-Icon liegt in `icons/ios_1024.png`.

@@ -1,5 +1,8 @@
 extends Control
 ## Karten-Code einlösen: links Eingabe, rechts erscheint die freigeschaltete Karte.
+## Codes kommen auch über den QR-Code der Karte: Die Landingpage kopiert den Code in die Zwischenablage,
+## und dieser Bildschirm trägt einen gültigen Code aus der Zwischenablage automatisch ein (beim Öffnen und
+## wenn die App wieder in den Vordergrund kommt). In der Browser-Version kommt er über ?code=… (params.code).
 
 var params := {}
 var _edit: LineEdit
@@ -30,7 +33,10 @@ func _ready() -> void:
 		_edit.caret_column = col)
 	p.add_child(_edit)
 	_edit.position = Vector2(60, 176)
-	_edit.size = Vector2(380, 64)
+	_edit.size = Vector2(284, 64)
+	var paste := UI.button(p, "Einfügen", Vector2(398, 208), _paste, 84, 64)
+	paste.add_theme_font_size_override("font_size", 8)
+	paste.focus_mode = Control.FOCUS_NONE
 	UI.primary(p, "Einlösen", Vector2(250, 290), _submit, 380, 64)
 	_msg = UI.label(p, "", Vector2(250, 334), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 460)
 	if Backend.test_mode:
@@ -48,6 +54,48 @@ func _ready() -> void:
 	if Nav.args.has("code"):  # Startoption für automatische Tests
 		_edit.text = Nav.args["code"]
 		_submit()
+	elif params.has("code"):  # Link aus dem QR-Code (Browser-Version)
+		_edit.text = str(params["code"])
+		_message("Code aus dem Link übernommen –\ntippe auf „Einlösen“.", UI.YELLOW)
+	else:
+		_check_clipboard()
+
+
+## Gültiger ALX-Code irgendwo im Text (auch in einem kopierten Link), sonst ""
+static func find_code(text: String) -> String:
+	var re := RegEx.create_from_string("ALX-?[A-Z0-9]{4}-?[A-Z0-9]{4}")
+	for m in re.search_all(text.to_upper()):
+		var code := CodeFormat.validate(m.get_string())
+		if code != "":
+			return code
+	return ""
+
+
+## Steht ein gültiger Code in der Zwischenablage? Dann eintragen (nur, wenn das Feld leer ist).
+func _check_clipboard() -> void:
+	if _busy or _edit.text.strip_edges() != "" or not DisplayServer.has_feature(DisplayServer.FEATURE_CLIPBOARD):
+		return
+	var code := find_code(DisplayServer.clipboard_get())
+	if code != "" and not (code in Save.data.get("mock_used", [])):
+		_edit.text = code
+		_message("Code aus der Zwischenablage –\ntippe auf „Einlösen“.", UI.YELLOW)
+
+
+func _paste() -> void:
+	if not DisplayServer.has_feature(DisplayServer.FEATURE_CLIPBOARD):
+		return
+	var text := DisplayServer.clipboard_get()
+	var code := find_code(text)
+	_edit.text = code if code != "" else text.strip_edges().to_upper().left(14)
+	if code == "":
+		_message("In der Zwischenablage steht kein gültiger Code.", UI.RED)
+	else:
+		_message("Eingefügt – tippe auf „Einlösen“.", UI.YELLOW)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN and is_node_ready():
+		_check_clipboard()
 
 
 func _message(text: String, color: Color) -> void:
