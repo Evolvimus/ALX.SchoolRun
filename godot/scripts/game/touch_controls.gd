@@ -28,6 +28,9 @@ var _stick_index := -1
 var _buttons := {}  # name -> { center, radius, icon, action, index, pressed }
 var _weapon_icon: Texture2D
 var _used := false  # nach der ersten Benutzung wird der Stick in Ruhe fast unsichtbar
+var _k := 1.0       # Größe aus den Einstellungen
+var _lefty := false # Linkshänder: Stick rechts, Knöpfe links
+var _ring := STICK_RING
 
 
 func setup(weapon: String) -> void:
@@ -35,14 +38,20 @@ func setup(weapon: String) -> void:
 	size = Vector2(_w, 540)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var ins := UI.safe_insets()
-	_stick_home = Vector2(ins.x + 120, 440)
+	_k = float(Save.data["settings"].get("touch_size", 1.0))
+	_lefty = bool(Save.data["settings"].get("lefty", false))
+	_ring = STICK_RING * _k
+	_stick_home = Vector2(_w - ins.y - 120 * _k if _lefty else ins.x + 120 * _k, 540 - 100 * _k)
 	_stick_origin = _stick_home
 	_stick_knob = _stick_home
 	_weapon_icon = Art.tex("hammer-gold" if weapon == "goldHammer" else "hammer" if weapon == "hammer" else "ruler")
-	var rx := _w - ins.y
+	# Knöpfe von der Ecke aus gemessen (bei Linkshändern gespiegelt)
+	var edge := ins.x if _lefty else ins.y
+	var jx := edge + 96 * _k
+	var ax := edge + 226 * _k
 	_buttons = {
-		"jump": { "center": Vector2(rx - 96, 432), "radius": 58.0, "icon": Art.tex("icon-jump"), "action": "jump", "index": -1, "pressed": false },
-		"attack": { "center": Vector2(rx - 226, 462), "radius": 46.0, "icon": _weapon_icon, "action": "attack", "index": -1, "pressed": false },
+		"jump": { "center": Vector2(jx if _lefty else _w - jx, 540 - 108 * _k), "radius": 58.0 * _k, "icon": Art.tex("icon-jump"), "action": "jump", "index": -1, "pressed": false },
+		"attack": { "center": Vector2(ax if _lefty else _w - ax, 540 - 78 * _k), "radius": 46.0 * _k, "icon": _weapon_icon, "action": "attack", "index": -1, "pressed": false },
 	}
 	queue_redraw()
 
@@ -80,14 +89,14 @@ func _touch(index: int, pos: Vector2, pressed: bool) -> void:
 	if pressed:
 		if pos.y < TOP_FREE:
 			return
-		if pos.x < _w * 0.45:
+		if (pos.x > _w * 0.55) if _lefty else (pos.x < _w * 0.45):
 			if _stick_index < 0:
 				_stick_index = index
 				_used = true
-				_stick_origin = Vector2(pos.x, minf(pos.y, 540 - STICK_RING - 6))
+				_stick_origin = Vector2(pos.x, minf(pos.y, 540 - _ring - 6))
 				_stick_knob = pos
 				_update_stick(pos)
-		elif pos.x > _w * 0.5:
+		elif (pos.x < _w * 0.5) if _lefty else (pos.x > _w * 0.5):
 			var b := _nearest(pos)
 			if b["index"] < 0:
 				b["index"] = index
@@ -135,8 +144,8 @@ func release_stick() -> void:
 
 func _update_stick(pos: Vector2) -> void:
 	var d := pos - _stick_origin
-	if d.length() > STICK_TRAVEL:  # Stick wandert mit, wenn der Daumen weiter zieht
-		_stick_origin = pos - d.normalized() * STICK_TRAVEL
+	if d.length() > STICK_TRAVEL * _k:  # Stick wandert mit, wenn der Daumen weiter zieht
+		_stick_origin = pos - d.normalized() * STICK_TRAVEL * _k
 		d = pos - _stick_origin
 	_stick_knob = _stick_origin + d
 	_apply_stick(d)
@@ -183,14 +192,14 @@ func _draw() -> void:
 	# Stick
 	var active := _stick_index >= 0
 	var a := 1.0 if active else (0.18 if _used else 0.45)
-	draw_circle(_stick_origin, STICK_RING, Color(0.05, 0.06, 0.14, 0.45 * a))
-	draw_arc(_stick_origin, STICK_RING, 0, TAU, 48, Color(1, 1, 1, 0.35 * a), 3.0)
+	draw_circle(_stick_origin, _ring, Color(0.05, 0.06, 0.14, 0.45 * a))
+	draw_arc(_stick_origin, _ring, 0, TAU, 48, Color(1, 1, 1, 0.35 * a), 3.0)
 	for dir in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
-		var tip: Vector2 = _stick_origin + dir * (STICK_RING - 12)
+		var tip: Vector2 = _stick_origin + dir * (_ring - 12)
 		var side: Vector2 = dir.orthogonal() * 6
 		draw_colored_polygon(PackedVector2Array([tip + dir * 6, tip - side, tip + side]), Color(1, 1, 1, 0.3 * a))
-	draw_circle(_stick_knob, STICK_KNOB, Color(1, 1, 1, 0.55 if active else 0.25))
-	draw_arc(_stick_knob, STICK_KNOB, 0, TAU, 32, Color(1, 1, 1, 0.8 * a), 2.0)
+	draw_circle(_stick_knob, STICK_KNOB * _k, Color(1, 1, 1, 0.55 if active else 0.25))
+	draw_arc(_stick_knob, STICK_KNOB * _k, 0, TAU, 32, Color(1, 1, 1, 0.8 * a), 2.0)
 	# Knöpfe
 	for b in _buttons.values():
 		var on: bool = b["pressed"]

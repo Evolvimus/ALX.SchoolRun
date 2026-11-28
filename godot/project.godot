@@ -15,6 +15,7 @@ Art="*res://scripts/autoload/art.gd"
 Save="*res://scripts/autoload/save.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 Backend="*res://scripts/autoload/backend.gd"
+Music="*res://scripts/autoload/music.gd"
 Nav="*res://scripts/autoload/nav.gd"
 
 [display]

@@ -48,6 +48,7 @@ var _next_quote := 0.0
 var _quote_index := 0
 var _next_sparkle := 0.0
 var _id := ""
+var _hat: Sprite2D
 
 
 func setup(g: Game, c: Dictionary, pos: Vector2) -> void:
@@ -71,6 +72,7 @@ func setup(g: Game, c: Dictionary, pos: Vector2) -> void:
 	view.offset = Vector2(0, -view.texture.get_height() / 2.0)
 	view.position = Vector2(0, SIZE.y / 2 + 1)
 	add_child(view)
+	_hat = Skins.attach_sprite(view, _id)
 
 	var w: String = c["weapon"]
 	weapon = Sprite2D.new()
@@ -311,6 +313,9 @@ func _draw_view(now: float, ground: bool, moving: bool) -> void:
 	view.texture = Art.tex("char-" + _id + frame)
 	view.offset = Vector2(0, -view.texture.get_height() / 2.0)
 	view.flip_h = facing < 0
+	if _hat:
+		_hat.flip_h = view.flip_h
+		_hat.position.x = float(_hat.get_meta("base_x")) * (-1.0 if view.flip_h else 1.0)
 	view.scale = _base_scale * _squash
 	view.modulate.a = 0.3 if now < safe_until and int(now / 80) % 2 else 1.0
 

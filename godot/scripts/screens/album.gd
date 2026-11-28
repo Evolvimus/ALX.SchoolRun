@@ -119,6 +119,9 @@ func _show(i: int) -> void:
 	UI.rect(d, Rect2(24, 290, 264, 2), UI.LINE)
 	UI.label(d, "Fähigkeit", Vector2(24, 304), 8, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT, 264)
 	UI.para(d, Chars.ability_text(c) if known else "???", Vector2(24, 320), 264, 8, Color.WHITE)
+	if unlocked and not shop:
+		Skins.attach_rect(fig, c["id"])
+		_hat_row(d)
 	# Aktion
 	if shop:
 		var price := int(c["price"])
@@ -138,6 +141,29 @@ func _show(i: int) -> void:
 		UI.image(b, "check", Vector2(40, 28), 2.0)
 	else:
 		UI.primary(d, "Auswählen", Vector2(156, 398), func(): _choose(c), 264, 56)
+
+
+## Event-Hüte (gelten für alle Figuren)
+func _hat_row(d: Control) -> void:
+	var owned := Skins.owned()
+	if owned.is_empty():
+		return
+	UI.label(d, "Hut", Vector2(24, 352), 7, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT, 60)
+	var options: Array = [""] + owned
+	for i in options.size():
+		var id: String = options[i]
+		var on: bool = Save.data["skin"] == id
+		var b := UI.button(d, "", Vector2(80 + i * 38, 358), func():
+			Save.data["skin"] = id
+			Save.persist()
+			Sfx.play("click")
+			_show(_focus), 32, 28)
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_stylebox_override("normal", UI.box(UI.YELLOW if on else UI.PANEL_LIGHT, 8, 2, UI.YELLOW if on else UI.LINE, 2))
+		if id == "":
+			UI.image(b, "icon-close", Vector2(16, 14), 1.0).modulate = UI.INK if on else UI.MUTED
+		else:
+			UI.fit(b, "acc-" + id, Vector2(16, 14), Vector2(22, 20))
 
 
 func _choose(c: Dictionary) -> void:

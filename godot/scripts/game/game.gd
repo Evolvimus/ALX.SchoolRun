@@ -86,6 +86,16 @@ var _hud_attempts: Label
 var _boss_bar: Control
 var _boss_fill: Panel
 var _touch: TouchControls
+## Tagesaufgabe: Zusatzregel (siehe Daily.MODIFIERS), sonst leer
+var _daily := {}
+var _ghost: Ghost
+## Geschosse der Fach-Fähigkeiten (Schallwelle, Zirkel)
+var _shots: Array[Dictionary] = []
+var _last_swing := 0
+var _compass: TextureRect
+var _compass_label: Label
+var _rec: Array = []
+var _rec_next := 0.0
 var _pause: PauseMenu
 var _vw := 960.0
 
@@ -103,6 +113,12 @@ func _ready() -> void:
 	_floor_line = height - 3 * T
 	_diff = DIFFICULTY.get(Save.data["difficulty"], DIFFICULTY["normal"])
 	_max_lives = _diff["lives"]
+	if params.get("daily", false):
+		_daily = Daily.modifier()
+		if _daily["id"] == "one_life":
+			_max_lives = 1
+		elif _daily["id"] == "fast":
+			Engine.time_scale = 1.2
 	_bot = Bot.new() if Nav.args.has("bot") else null
 	var c := Chars.get_char(Save.data["selected"])
 
@@ -144,6 +160,8 @@ func _ready() -> void:
 		add_child(_tutorial)
 		_tutorial.setup(self, level["tutorial"], _overlay, Nav.touch_enabled(), _weapon_name(c))
 	_level_banner(c)
+	_build_ghost()
+	Music.play(Music.track_for(level))
 	if Nav.args.has("pause-test"):
 		get_tree().create_timer(1.0).timeout.connect(_open_pause)
 
@@ -471,6 +489,12 @@ func _build_hud(c: Dictionary) -> void:
 	UI.rect(_hud, Rect2(e.y - 82 - tw, 16, tw, 48), pill, 2, UI.LINE, 24)
 	UI.image(_hud, "icon-clock", Vector2(e.y - 82 - tw + 24, 40), 2.0)
 	_hud_time = UI.label(_hud, "", Vector2(e.y - 82 - tw + 42, 34), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 80)
+	if Chars.has_ability(c, "compass") and _hefte.size() > 0:
+		UI.rect(_hud, Rect2(cx + cw + 10, 16, 84, 48), pill, 2, Color("#8fb4ff"), 24)
+		_compass = UI.image(_hud, "icon-arrow", Vector2(cx + cw + 34, 40), 2.4)
+		_compass.pivot_offset = _compass.size / 2
+		_compass.modulate = Color("#8fb4ff")
+		_compass_label = UI.label(_hud, "", Vector2(cx + cw + 54, 34), 10, Color("#8fb4ff"), HORIZONTAL_ALIGNMENT_LEFT, 40)
 	if boss:
 		_boss_bar = Control.new()
 		_hud.add_child(_boss_bar)
@@ -494,6 +518,77 @@ func _refresh_hud() -> void:
 	_hud_attempts.text = "" if _tutorial or attempts == 0 else "Fehlversuche: %d" % attempts
 
 
+## Fach-Fähigkeiten: Schallwelle fliegt geradeaus, der Zirkel fliegt hin und zurück
+func _update_shots(delta: float) -> void:
+	var c: Dictionary = player.char_data
+	if player.swing_id != _last_swing:
+		_last_swing = player.swing_id
+		if Chars.has_ability(c, "wave") or Chars.has_ability(c, "boomerang"):
+			var wave := Chars.has_ability(c, "wave")
+			var spr := Enemies.make_sprite(self, "shot-wave" if wave else "shot-compass", player.position + Vector2(player.facing * 30, -6), 3.0, 12)
+			spr.flip_h = player.facing < 0
+			_shots.append({ "node": spr, "dir": player.facing, "kind": "wave" if wave else "boomerang", "t": 0.0, "hit": [] })
+	for sh in _shots.duplicate():
+		var spr: Sprite2D = sh["node"]
+		sh["t"] += delta
+		if sh["kind"] == "wave":
+			spr.position.x += sh["dir"] * 620.0 * delta
+			spr.scale = Vector2(3, 3) * (1.0 + sh["t"] * 0.8)
+			spr.modulate.a = 1.0 - sh["t"] / 0.6
+			if sh["t"] > 0.6 or solid_at(spr.position.x, spr.position.y):
+				spr.queue_free()
+				_shots.erase(sh)
+				continue
+		else:
+			spr.rotation += 14.0 * delta
+			if sh["t"] < 0.4:
+				spr.position.x += sh["dir"] * 640.0 * delta * (1.0 - sh["t"] / 0.4)
+			else:  # zurück zur Figur
+				var to := player.position + Vector2(0, -10) - spr.position
+				if to.length() < 30 or sh["t"] > 2.5:
+					spr.queue_free()
+					_shots.erase(sh)
+					continue
+				spr.position += to.normalized() * minf(to.length(), 700.0 * delta)
+		var r := Rect2(spr.position - Vector2(18, 20), Vector2(36, 40))
+		for e in enemies:
+			if e.alive and e.hittable and not (e in sh["hit"]) and r.intersects(e.hitbox()):
+				sh["hit"].append(e)
+				fx.burst(e.hitbox().get_center(), Color("#7fe8ff"), 6)
+				e.hit(sh["dir"], 1)
+	# Heft-Kompass: Pfeil zum nächsten noch nicht gefundenen Geheimheft
+	if _compass:
+		var best := INF
+		var target := Vector2.ZERO
+		for h in _hefte:
+			if not (h["taken"] or h["had"]):
+				var dist: float = (h["pos"] - player.position).length()
+				if dist < best:
+					best = dist
+					target = h["pos"]
+		_compass.visible = best < INF
+		_compass_label.visible = best < INF
+		if best < INF:
+			_compass.rotation = (target - player.position).angle() + PI / 2
+			_compass_label.text = "%d" % roundi(best / T)
+
+
+## Geist der Bestzeit (nicht im Tutorial und nicht bei der Tagesaufgabe)
+func _build_ghost() -> void:
+	if _bot or _tutorial or not _daily.is_empty() or not Save.data["settings"].get("ghost", true):
+		return
+	var data: Dictionary = Save.data["ghosts"].get(level["id"], {})
+	if (data.get("s", []) as Array).size() < 8:
+		return
+	_ghost = Ghost.new()
+	add_child(_ghost)
+	_ghost.setup(data, Player.SIZE.y)
+
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
+
+
 ## Levelname kurz einblenden
 func _level_banner(c: Dictionary) -> void:
 	if _bot or _tutorial:
@@ -506,7 +601,10 @@ func _level_banner(c: Dictionary) -> void:
 	var t := UI.tag(p, tag_text, Vector2.ZERO, UI.YELLOW, 8)
 	t.position = Vector2(230 - t.size.x / 2, 14)
 	UI.label(p, level["name"], Vector2(230, 44), 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 440)
-	UI.label(p, "%s · %s" % [c["name"], _diff["label"]], Vector2(230, 70), 7, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 440)
+	var sub := "%s · %s" % [c["name"], _diff["label"]]
+	if not _daily.is_empty():
+		sub = "TAGESAUFGABE · %s" % _daily["name"]
+	UI.label(p, sub, Vector2(230, 70), 7, UI.YELLOW if not _daily.is_empty() else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 440)
 	b.modulate.a = 0.0
 	var tw := b.create_tween()
 	tw.tween_interval(0.2)
@@ -551,8 +649,10 @@ func _open_pause() -> void:
 		layer.queue_free()
 		_pause = null
 		get_tree().paused = false)
-	_pause.restart.connect(func(): Nav.goto("game", { "level": level_index }))
+	_pause.restart.connect(func(): Nav.goto("game", { "level": level_index, "daily": not _daily.is_empty() }))
 	_pause.quit_to_map.connect(func(): Nav.goto("levels", { "focus": level_index }))
+	_pause.quit_to_menu.connect(func(): Nav.goto("menu"))
+	_pause.settings_requested.connect(func(): SettingsPanel.open(layer))
 	get_tree().paused = true
 
 
@@ -766,6 +866,13 @@ func _physics_process(delta: float) -> void:
 		player.stop()
 		return
 	player.tick(now, delta, c)
+	if now >= _rec_next and _rec.size() < 4 * 24000:  # Aufnahme für den Geist (max. 20 Minuten)
+		_rec_next = now + Ghost.STEP
+		_rec.append_array([roundi(player.position.x), roundi(player.position.y),
+			Ghost.frame_code(player.on_ground(), absf(player.velocity.x) > 10, now), player.facing])
+	if _ghost:
+		_ghost.tick(now)
+	_update_shots(delta)
 	_lead = lerpf(_lead, player.facing * 90.0, 0.04)
 	_check_leaves()
 	_check_checkpoints()
@@ -858,6 +965,8 @@ func _fly_away(node: Sprite2D) -> void:
 
 
 func _check_checkpoints() -> void:
+	if _daily.get("id", "") == "no_checkpoints":
+		return
 	for i in _checkpoints.size():
 		var cp: Dictionary = _checkpoints[i]
 		if cp["active"] or absf(cp["x"] - player.position.x) > 32 or absf(cp["floor"] - 40 - player.position.y) > 70:
@@ -1126,7 +1235,7 @@ func _hurt(from_x: float) -> void:
 		player.lives = _max_lives
 		return
 	_hits += 1
-	if _touch:
+	if _touch and Save.data["settings"].get("vibration", true):
 		Input.vibrate_handheld(60)
 	fx.burst(player.position, Color("#ff5a5a"), 10)
 	shake(180, 0.012)
@@ -1183,6 +1292,43 @@ func _panel(title_text: String) -> Control:
 	return p
 
 
+## Ergebnis der Tagesaufgabe: Bestzeit des Tages, Tagesrangliste, kleine Belohnung beim ersten Mal am Tag
+func _show_daily_result(seconds: float) -> void:
+	var day := Daily.today()
+	var d: Dictionary = Save.data["daily"]
+	var first_today: bool = d.get("day", "") != day
+	var valid: bool = not (_daily["id"] == "leaves_only" and collected * 4 < _total * 3)
+	var best_before := Daily.best_today()
+	var new_best: bool = valid and (best_before < 0 or seconds < best_before)
+	var reward := 0
+	if valid:
+		if first_today:
+			Save.data["stats"]["dailies"] = int(Save.data["stats"].get("dailies", 0)) + 1
+			reward = 100
+		Save.data["daily"] = { "day": day, "best": seconds if new_best else best_before }
+		Save.data["coins"] = int(Save.data["coins"]) + reward
+		Save.persist()
+		Backend.submit_daily(day, level["id"], seconds)
+		Achievements.check({ "level_id": level["id"], "kind": "daily" })
+	var p := _panel("Tagesaufgabe geschafft!" if valid else "Nicht gewertet")
+	UI.label(p, "%s · %s" % [level["name"], _daily["name"]], Vector2(270, 58), 8, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 520)
+	var t := UI.chip(p, "icon-clock", "%.1fs" % seconds, 0, 120, Color.WHITE, 16)
+	t.position.x = 270 - t.size.x / 2
+	var line := "Bestzeit heute: %.1fs" % Daily.best_today() if valid else "Für die Wertung brauchst du mindestens 3/4 der Blätter."
+	if new_best:
+		line = "Neue Tagesbestzeit!"
+	UI.label(p, line, Vector2(270, 160), 9, UI.GREEN if new_best else UI.MUTED if valid else UI.RED, HORIZONTAL_ALIGNMENT_CENTER, 500)
+	UI.label(p, "Die Rangliste „Heute“ gilt für alle Spieler*innen.", Vector2(270, 196), 7, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 500)
+	if reward > 0:
+		var r := UI.chip(p, "icon-coin", "+%d Ginkgo-Taler" % reward, 0, 250, Color("#ffd23f"), 12)
+		r.position.x = 270 - r.size.x / 2
+	var first := UI.primary(p, "Rangliste", Vector2(270, 342), func(): Nav.goto("rangliste", { "tab": "daily" }), 300, 60)
+	UI.button(p, "Nochmal", Vector2(196, 392), func(): Nav.goto("game", { "level": level_index, "daily": true }), 148, 40).add_theme_font_size_override("font_size", 9)
+	UI.button(p, "Hauptmenü", Vector2(344, 392), func(): Nav.goto("menu"), 148, 40).add_theme_font_size_override("font_size", 9)
+	first.grab_focus.call_deferred()
+	_report("win")
+
+
 ## Ziel erreicht: Die gesammelten Blätter fliegen in die Krone und der Ginkgo wird golden.
 func _finish() -> void:
 	_done = true
@@ -1230,6 +1376,10 @@ func _show_result(seconds: float) -> void:
 	if earned["leaves"]:
 		fx.leaves(_goal - Vector2(0, 175), 30)
 	Sfx.play("win")
+	Skins.grant_event()
+	if not _daily.is_empty():
+		_show_daily_result(seconds)
+		return
 	# Medaillen: einmal verdient, für immer behalten; jede neue bringt Bonus-Taler
 	var medals: Dictionary = Save.data["medals"].get(id, {})
 	var new_medals := 0
@@ -1241,11 +1391,19 @@ func _show_result(seconds: float) -> void:
 	var reward := int((collected + _bonus + player.lives * 5 + _hefte_new * 10 + new_medals * 25) * float(_diff["reward"]))
 	var best = Save.data["best_times"].get(id)
 	var new_best: bool = best == null or seconds < best
+	var ghost_beaten := _ghost != null and seconds < _ghost.best_time
 	if new_best:
 		Save.data["best_times"][id] = seconds
+		if not _bot and not _tutorial:
+			Save.data["ghosts"][id] = { "c": Save.data["selected"], "t": seconds, "s": _rec }
 	Save.data["best_leaves"][id] = maxi(int(Save.data["best_leaves"].get(id, 0)), collected)
 	Save.data["coins"] = int(Save.data["coins"]) + reward
 	Save.persist()
+	# Rangliste (alle Level außer dem Tutorial) und Erfolge
+	if not _tutorial:
+		Backend.submit_score(id, seconds, Backend.points_for(collected, Levels.medal_count(id), seconds, par))
+	Achievements.check({ "level_id": id, "kind": level.get("kind", ""), "hits": _hits, "attempts": attempts,
+		"difficulty": Save.data["difficulty"], "all_leaves": earned["leaves"], "ghost_beaten": ghost_beaten })
 
 	var p := _panel("Der Ginkgo leuchtet!" if earned["leaves"] else "Geschafft!")
 	UI.label(p, "%s · %s" % [Levels.label(level_index), level["name"]], Vector2(270, 58), 8, UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 520)
@@ -1273,6 +1431,8 @@ func _show_result(seconds: float) -> void:
 	var info := "Zielzeit %ds" % int(par)
 	if new_best:
 		info = "NEUE BESTZEIT! · " + info
+	if ghost_beaten:
+		info = "Geist geschlagen! · " + info
 	UI.label(p, info, Vector2(270, 130), 7, UI.GREEN if new_best else UI.MUTED, HORIZONTAL_ALIGNMENT_CENTER, 520)
 	# Medaillen
 	for i in MEDALS.size():

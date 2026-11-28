@@ -1,0 +1,9 @@
+# Lehrer-Zitate für die Sprechblasen im Spiel.
+# Eine Zeile pro Spruch:   figur-id: Spruch
+# Zeilenumbruch in der Sprechblase mit \n. Zeilen mit # werden ignoriert.
+# Die Figur-IDs stehen in scripts/data/chars.gd (lehrer01 = Herr Hammer, lehrer02 … lehrer20, lehrer01m = Admin Hammer).
+#
+# Beispiele (zum Ausprobieren, bitte durch echte Sprüche ersetzen):
+lehrer02: Wer zuletzt lacht,\nhat die Hausaufgaben vergessen.
+lehrer03: Das kommt in der Klausur dran!
+lehrer04: Handys bitte in die Tasche.

@@ -15,6 +15,7 @@ extends Node
 ##   --code=CODE    im Code-Bildschirm diesen Code sofort einlösen
 ##   --pause-test   im Spiel nach 1 s das Pausenmenü öffnen (für Bildschirmfotos)
 ##   --touch-probe  Touch-Steuerung automatisch testen (mit --level=1 --touch, siehe tests/touch_probe.gd)
+##   --daily        mit --level: als Tagesaufgabe spielen (heutige Zusatzregel)
 ##   --no-intro     ohne Intro direkt ins Menü
 ##   --shot=DATEI   nach --shot-after Millisekunden (Standard 1500) ein Bildschirmfoto speichern und beenden
 
@@ -26,6 +27,9 @@ const SCREENS := {
 	"redeem": "res://scripts/screens/redeem.gd",
 	"shop": "res://scripts/screens/shop.gd",
 	"lexikon": "res://scripts/screens/lexikon.gd",
+	"rangliste": "res://scripts/screens/leaderboard.gd",
+	"erfolge": "res://scripts/screens/achievements_screen.gd",
+	"einstellungen": "res://scripts/screens/settings_screen.gd",
 	"game": "res://scripts/game/game.gd",
 }
 
@@ -73,8 +77,8 @@ func start() -> void:
 	if args.has("screen"):
 		goto(args["screen"])
 	elif args.has("level"):
-		goto("game", { "level": int(args["level"]) })
-	elif args.has("no-intro") or args.has("quit") or args.has("bot"):
+		goto("game", { "level": int(args["level"]), "daily": args.has("daily") })
+	elif args.has("no-intro") or args.has("quit") or args.has("bot") or not Save.data["settings"].get("intro", true):
 		goto("menu")
 	else:
 		goto("intro")
@@ -113,6 +117,49 @@ func _swap(screen: String, params: Dictionary) -> void:
 	_params = params
 	current.set("params", params)
 	add_child(current)
+	if screen == "intro":
+		Music.play("")
+	elif screen != "game":
+		Music.play("menu")
+
+
+## Kurze Einblendung oben rechts, die Bildschirmwechsel überlebt (Erfolge, Belohnungen)
+var _toast_queue: Array = []
+var _toast_layer: CanvasLayer
+
+
+func toast(icon: String, title: String, text: String) -> void:
+	_toast_queue.append([icon, title, text])
+	if _toast_queue.size() == 1:
+		_show_toast()
+
+
+func _show_toast() -> void:
+	if _toast_queue.is_empty():
+		return
+	var t: Array = _toast_queue[0]
+	if _toast_layer == null:
+		_toast_layer = CanvasLayer.new()
+		_toast_layer.layer = 90
+		_toast_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(_toast_layer)
+	var vw := UI.vw()
+	var right := vw - UI.safe_insets().y - 16
+	var box := UI.panel(_toast_layer, Rect2(vw + 20, 84, 320, 62), UI.YELLOW)
+	box.theme = UI.theme()
+	UI.fit(box, t[0], Vector2(36, 31), Vector2(36, 36)).modulate = UI.YELLOW if t[0] == "icon-trophy" else Color.WHITE
+	UI.label(box, t[1], Vector2(68, 14), 7, UI.YELLOW, HORIZONTAL_ALIGNMENT_LEFT, 240)
+	var l := UI.label(box, t[2], Vector2(68, 31), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 240)
+	l.clip_text = true
+	Sfx.play("magic")
+	var tw := box.create_tween()
+	tw.tween_property(box, "position:x", right - 320, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(2.6)
+	tw.tween_property(box, "position:x", vw + 20, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		box.queue_free()
+		_toast_queue.pop_front()
+		_show_toast())
 
 
 ## Fenstergröße geändert (PC): Menüs neu aufbauen, damit sie mittig bleiben

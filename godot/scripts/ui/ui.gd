@@ -84,6 +84,20 @@ static func theme() -> Theme:
 	_theme.set_color("caret_color", "LineEdit", INK)
 	_theme.set_font_size("font_size", "LineEdit", 20)
 	_theme.set_color("font_color", "Label", TEXT)
+	# Schieberegler
+	var track := box(Color("#0b0d1f"), 6, 2, LINE, 0)
+	track.content_margin_top = 4
+	track.content_margin_bottom = 4
+	_theme.set_stylebox("slider", "HSlider", track)
+	var fill := box(YELLOW, 6, 0, Color.TRANSPARENT, 0)
+	fill.content_margin_top = 4
+	fill.content_margin_bottom = 4
+	_theme.set_stylebox("grabber_area", "HSlider", fill)
+	_theme.set_stylebox("grabber_area_highlight", "HSlider", fill)
+	var knob := ImageTexture.create_from_image(Art.images["knob"])
+	knob.set_size_override(Vector2i(27, 27))
+	_theme.set_icon("grabber", "HSlider", knob)
+	_theme.set_icon("grabber_highlight", "HSlider", knob)
 	return _theme
 
 
@@ -388,6 +402,10 @@ static func card(parent: Node, c: Dictionary, unlocked: bool, center: Vector2, k
 		var tw := shine.create_tween().set_loops()
 		tw.tween_property(shine, "modulate:a", 0.15, 0.8)
 		tw.tween_property(shine, "modulate:a", 1.0, 0.8)
+	if unlocked and Rewards.has("gold_frame"):  # Sammel-Belohnung ab 20 Lehrern
+		s.border_color = Color("#ffd23f")
+		var inner := rect(p, Rect2(Vector2(4, 4) * k, Vector2(w, h) - Vector2(8, 8) * k), Color.TRANSPARENT, 1, Color("#fff3b0"), int(8 * k))
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait := fit(p, "bust-" + c["id"], Vector2(w / 2, h * 0.36), Vector2(84, 84) * k)
 	if not unlocked:
 		portrait.modulate = Color(0.03, 0.035, 0.08)

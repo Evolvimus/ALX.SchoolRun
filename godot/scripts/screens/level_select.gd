@@ -22,8 +22,8 @@ const DIFF_INFO := {
 	"normal": "3 Leben · zurück zum Setzling",
 	"abi": "1 Leben · 50 % mehr Taler",
 }
-const KIND_COLOR := { "tutorial": Color("#7ee08a"), "normal": Color("#ffcc33"), "challenge": Color("#b45cff"), "boss": Color("#ff5c8a") }
-const KIND_TEXT := { "tutorial": "TUTORIAL", "normal": "LEVEL", "challenge": "HERAUSFORDERUNG", "boss": "BOSS" }
+const KIND_COLOR := { "tutorial": Color("#7ee08a"), "normal": Color("#ffcc33"), "challenge": Color("#b45cff"), "boss": Color("#ff5c8a"), "bonus": Color("#5ab0ff") }
+const KIND_TEXT := { "tutorial": "TUTORIAL", "normal": "LEVEL", "challenge": "HERAUSFORDERUNG", "boss": "BOSS", "bonus": "BONUSLEVEL" }
 const COMING := ["Mensa", "Bibliothek", "Computerraum", "Lehrertrakt"]
 
 
@@ -70,6 +70,13 @@ func _build_pages() -> void:
 			if lc == ci or (ci == 1 and lc == 0):
 				idx.append(i)
 		_pages.append({ "title": Levels.CHAPTERS[ci]["title"], "chapter": ci, "levels": idx })
+	# Bonuslevel (Sammel-Belohnung) als eigene Seite
+	var bonus: Array = []
+	for i in Levels.list.size():
+		if Levels.list[i]["kind"] == "bonus":
+			bonus.append(i)
+	if not bonus.is_empty():
+		_pages.append({ "title": Levels.BONUS["title"], "chapter": Levels.list[bonus[0]]["chapter"], "levels": bonus })
 	_pages.append({ "title": "Bald: Kapitel 3–6", "chapter": -1, "levels": [] })
 
 
@@ -220,7 +227,9 @@ func _select(i: int) -> void:
 	UI.label(panel, lv["name"], Vector2(22, 52), 16, Color.WHITE if open else UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT, 560)
 	if not open:
 		var why := "Erst %s schaffen." % _previous_name(i)
-		if lv["kind"] == "challenge":
+		if lv["kind"] == "bonus":
+			why = "Sammel-Belohnung: wird ab 10 freigeschalteten Lehrern geöffnet."
+		elif lv["kind"] == "challenge":
 			why = "Braucht %d Medaillen aus diesem Kapitel – du hast %d." % [lv["medals_needed"], Levels.chapter_medals(lv["chapter"])]
 		UI.image(panel, "icon-lock", Vector2(30, 94), 1.6).modulate = UI.MUTED
 		UI.label(panel, why, Vector2(46, 88), 8, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT, 560)

@@ -20,6 +20,12 @@ const RARITY_COLOR := {
 const ABILITY_LABEL := {
 	"none": "Keine", "doubleJump": "Doppelsprung", "speed": "Sprinter", "highJump": "Supersprung",
 	"glide": "Gleiten (Sprung halten)", "smash": "Kisten zerschlagen",
+	"wave": "Schallwelle (Hieb fliegt weit)", "boomerang": "Zirkel-Bumerang", "compass": "Heft-Kompass",
+}
+## Passende Fähigkeit je Fach (Vorschlag, wenn die echten Lehrer eingetragen werden)
+const SUBJECT_ABILITY := {
+	"Sport": "speed", "Musik": "wave", "Mathe": "boomerang", "Erdkunde": "compass", "Physik": "highJump",
+	"Biologie": "glide", "Chemie": "smash", "Kunst": "doubleJump",
 }
 ## Preis im Shop in Ginkgo-Talern. Mythische Versionen gibt es nur über Sammelkarten.
 const PRICE := { "selten": 150, "superSelten": 300, "episch": 600, "legendaer": 1200, "mythisch": 0 }
@@ -67,7 +73,7 @@ static func _static_init() -> void:
 		"episch", "episch", "episch", "episch",
 		"legendaer", "legendaer",
 	]
-	var abilities := ["doubleJump", "speed", "highJump", "glide", "smash"]
+	var abilities := ["doubleJump", "speed", "highJump", "glide", "smash", "wave", "boomerang", "compass"]
 	var colors := [0x3cb44b, 0xffe119, 0x4363d8, 0xf58231, 0x911eb4, 0x46f0f0, 0xf032e6, 0xbcf60c, 0xfabebe,
 		0x008080, 0xe6beff, 0x9a6324, 0xfffac8, 0x800000, 0xaaffc3, 0x808000, 0xffd8b1, 0x000075, 0xffffff]
 	var placeholders: Array[Dictionary] = []
@@ -84,6 +90,22 @@ static func _static_init() -> void:
 	})
 	teachers.assign([hammer] + placeholders + [hammer_mythic])
 	all.assign([starter] + teachers)
+	_load_quotes()
+
+
+## Zusätzliche Sprüche aus res://data/zitate.txt („figur-id: Spruch“, eine Zeile pro Spruch)
+static func _load_quotes() -> void:
+	if not FileAccess.file_exists("res://data/zitate.txt"):
+		return
+	for line in FileAccess.get_file_as_string("res://data/zitate.txt").split("\n"):
+		line = line.strip_edges()
+		if line == "" or line.begins_with("#") or not ":" in line:
+			continue
+		var id := line.get_slice(":", 0).strip_edges()
+		var text := line.substr(line.find(":") + 1).strip_edges().replace("\\n", "\n")
+		for c in all:
+			if c["id"] == id and not text in c["quotes"]:
+				c["quotes"] = (c["quotes"] as Array) + [text]
 
 
 ## Füllt fehlende Felder mit Standardwerten auf.

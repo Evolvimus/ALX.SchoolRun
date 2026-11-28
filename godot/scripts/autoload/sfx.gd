@@ -17,7 +17,7 @@ func _ready() -> void:
 
 
 func play(sound: String, pitch := 1.0) -> void:
-	if Save.data.get("muted", false) or not _sounds.has(sound):
+	if Save.data.get("muted", false) or not _sounds.has(sound) or float(Save.data["settings"].get("sfx", 1.0)) <= 0.01:
 		return
 	var player := _players[0]
 	for p in _players:
@@ -26,6 +26,7 @@ func play(sound: String, pitch := 1.0) -> void:
 			break
 	player.stream = _sounds[sound]
 	player.pitch_scale = pitch
+	player.volume_db = linear_to_db(maxf(0.001, float(Save.data["settings"].get("sfx", 1.0))))
 	player.play()
 
 
@@ -37,6 +38,7 @@ func leaf(combo: int) -> void:
 func toggle_mute() -> bool:
 	Save.data["muted"] = not Save.data["muted"]
 	Save.persist()
+	Music.refresh_volume()
 	if not Save.data["muted"]:
 		play("click")
 	return Save.data["muted"]

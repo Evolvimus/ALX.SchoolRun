@@ -38,6 +38,12 @@ const CHAPTERS := [
 	] },
 ]
 
+## Bonuslevel: werden mit der Sammel-Belohnung „10 Lehrer“ freigeschaltet (siehe rewards.gd).
+## Sie stehen als eigenes Kapitel hinter allen anderen.
+const BONUS := { "title": "Bonus · Sammel-Belohnung", "levels": [
+	{ "scene": "res://levels/lehrerzimmer.tscn", "kind": "bonus" },
+] }
+
 ## Tutorial-Aufgaben je Level-ID: { at = Spalte, ab der sie erscheint, text, touch (Text am Handy, optional),
 ##                                  done = { type = ... }, opens_door }
 ##   done.type: "col" (Spalte erreicht), "leaves" (Anzahl Blätter), "checkpoint", "defeat" (Gegnerart, "" = Übungsscheibe),
@@ -64,9 +70,10 @@ static var list: Array[Dictionary] = []
 
 static func load_all() -> void:
 	list.clear()
-	for ci in CHAPTERS.size():
+	var chapters: Array = CHAPTERS + [BONUS]
+	for ci in chapters.size():
 		var slot := 0
-		for entry in CHAPTERS[ci]["levels"]:
+		for entry in chapters[ci]["levels"]:
 			if not ResourceLoader.exists(entry["scene"]):
 				push_warning("Level fehlt: " + entry["scene"])
 				continue
@@ -115,10 +122,12 @@ static func is_unlocked(i: int) -> bool:
 	var lv := list[i]
 	if lv["kind"] == "tutorial" or (lv["chapter"] == 1 and lv["slot"] == 1):
 		return true
+	if lv["kind"] == "bonus":
+		return Rewards.has("bonus_level")
 	if lv["kind"] == "challenge":
 		return chapter_medals(lv["chapter"]) >= lv["medals_needed"]
 	for j in range(i - 1, -1, -1):
-		if list[j]["kind"] != "challenge" and list[j]["kind"] != "tutorial":
+		if list[j]["kind"] not in ["challenge", "tutorial", "bonus"]:
 			return completed(j)
 	return true
 
@@ -126,7 +135,7 @@ static func is_unlocked(i: int) -> bool:
 ## Welches Level kommt nach i? Das nächste Pflichtlevel (Herausforderungen überspringt „Weiter“), sonst -1.
 static func next_index(i: int) -> int:
 	for j in range(i + 1, list.size()):
-		if list[j]["kind"] != "challenge":
+		if list[j]["kind"] not in ["challenge", "bonus"]:
 			return j
 	return -1
 
@@ -173,6 +182,8 @@ static func label(i: int) -> String:
 	var lv := list[i]
 	if lv["kind"] == "tutorial":
 		return "Tutorial"
+	if lv["kind"] == "bonus":
+		return "B-%d" % lv["slot"]
 	return "%d-%d" % [lv["chapter"], lv["slot"]]
 
 

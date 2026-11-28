@@ -33,11 +33,47 @@ Ohne Editor aus dem Terminal: `godot --path godot`
 
 ## Aufbau und Design
 - **Intro** beim Start: „an evolvimus production“ und „by Nikola Kostic“ (`scripts/screens/intro.gd`, Tippen überspringt).
-- **Hauptmenü:** großer „Spielen“-Button, der direkt mit dem nächsten offenen Level weitermacht, darunter Kacheln für Schulplan, Figuren, Lexikon, Code und Shop; rechts die gewählte Figur.
+- **Hauptmenü:** großer „Spielen“-Button, der direkt mit dem nächsten offenen Level weitermacht, darunter Kacheln für Schulplan, Täglich, Rangliste, Erfolge, Figuren, Lexikon, Code und Shop; oben rechts Einstellungen und Ton; rechts die gewählte Figur.
 - **Schulplan:** ein Kapitel pro Seite (wischen, Pfeile oder ← →), Stationen als Weg, unten Infos und „Spielen“. Schwierigkeit oben rechts als Umschalter.
 - **Figuren / Shop / Lexikon:** links groß die angetippte Figur bzw. der Gegner, rechts das Raster.
-- **Im Spiel:** schlanke Anzeigen oben (Leben, Blätter, Hefte, Zeit, Pause), Levelname kurz eingeblendet, Pausenmenü (Weiter, Neu starten, Schulplan, Ton).
+- **Im Spiel:** schlanke Anzeigen oben (Leben, Blätter, Hefte, Zeit, Pause), Levelname kurz eingeblendet, Pausenmenü (Weiter, Neu starten, Schulplan, **Hauptmenü**, Ton, Einstellungen).
 - Alle Farben, Buttons, Panels, Chips und Karten stehen zentral in `scripts/ui/ui.gd`. Die Menüs sind für 960×540 gebaut und werden auf breiteren Bildschirmen mittig gesetzt.
+
+## Musik
+Jedes Kapitel, das Menü und die Bosse haben ein eigenes Chiptune-Stück (`scripts/autoload/music.gd`). Die Stücke werden per Code komponiert (Tempo, Tonart, Akkordfolge, Stil) und beim Start nach und nach erzeugt, ohne Ruckeln und ohne Audiodateien. Lautstärke von Musik und Effekten getrennt in den Einstellungen.
+
+## Einstellungen
+Musik, Effekte, Größe der Touch-Knöpfe (klein/mittel/groß), Linkshänder-Layout (Stick rechts, Knöpfe links), Vibration, Geist der Bestzeit, Intro an/aus und der Name in der Rangliste (`scripts/ui/settings_panel.gd`). Erreichbar im Hauptmenü (Zahnrad) und im Pausenmenü.
+
+## Rangliste (für alle)
+- Eine gemeinsame Rangliste für alle Spieler*innen, nicht nach Stufen getrennt. Drei Ansichten: **Gesamt** (Punkte aus allen Leveln), **Level** (Bestzeit je Level) und **Heute** (Tagesaufgabe).
+- Punkte je Level: Blätter × 10 + Medaillen × 100 + Tempo-Bonus (schneller als 1,5 × Zielzeit). Gezählt wird das beste Ergebnis je Level.
+- **Namen werden zufällig erzeugt** („Flinker Bücherwurm 42“, `scripts/data/names.gd`), es gibt keine freie Eingabe. So landen weder echte Namen noch Beleidigungen in der Liste. Der Server lehnt andere Namen ab. In den Einstellungen kann man einen neuen Namen würfeln.
+- Server: `supabase/migrations/002_leaderboard.sql` im Supabase-SQL-Editor ausführen (nach `001_codes.sql`). Im Testmodus speichert das Spiel die eigenen Werte lokal und zeigt Beispiel-Einträge.
+
+## Tagesaufgabe
+Jeden Tag dasselbe Level für alle, mit einer Zusatzregel (nur ein Leben, ohne Setzlinge, Turbo, Blätterjagd oder klassisch; `scripts/data/daily.gd`). Die Bestzeit des Tages kommt in die Rangliste „Heute“, die erste geschaffte Tagesaufgabe am Tag bringt 100 Taler. Das Level muss dafür nicht freigeschaltet sein.
+
+## Geist der Bestzeit
+Nach einer neuen Bestzeit läuft beim nächsten Versuch eine durchsichtige Figur den besten Lauf nach (`scripts/game/ghost.gd`). Wer schneller ist, schlägt den Geist (Erfolg „Geisterjäger*in“). In den Einstellungen abschaltbar.
+
+## Erfolge und Sammel-Belohnungen
+- 20 Erfolge (`scripts/data/achievements.gd`), z. B. „Kein Kratzer“ (Boss ohne Treffer), „Forscher*in“ (alle Gegner entdeckt), „Stammgast“ (7 Tagesaufgaben). Neue Erfolge werden eingeblendet; Übersicht im Menü unter „Erfolge“.
+- **Sammel-Belohnungen** (`scripts/data/rewards.gd`): 5 Lehrer → 250 Taler, 10 Lehrer → Bonuslevel „Lehrerzimmer“, 20 Lehrer → goldener Rahmen für alle Karten.
+
+## Fach-Fähigkeiten
+Neben Doppelsprung, Sprinter, Supersprung, Gleiten und Kisten zerschlagen gibt es jetzt:
+- **Schallwelle** (z. B. Musik): Der Hieb schickt eine Welle weit nach vorne, die Gegner trifft.
+- **Zirkel-Bumerang** (z. B. Mathe): Der Hieb wirft einen Zirkel, der hin- und zurückfliegt.
+- **Heft-Kompass** (z. B. Erdkunde): Ein Pfeil oben zeigt zum nächsten noch nicht gefundenen Geheimheft und wie viele Kacheln es entfernt ist.
+
+Vorschläge je Fach stehen in `Chars.SUBJECT_ABILITY`. Wenn die echten Lehrer eingetragen werden, einfach `"ability"` passend setzen.
+
+## Lehrer-Zitate
+Die Sprechblasen-Sprüche stehen in **`data/zitate.txt`**, eine Zeile pro Spruch: `lehrer05: Das kommt in der Klausur dran!` (Zeilenumbruch mit `\n`). Die Datei kann das Abikomitee ohne Programmierkenntnisse bearbeiten.
+
+## Event-Hüte
+Zeitlich begrenzte Accessoires in **`data/events.cfg`**: Name, Start- und Enddatum und welche Hüte es gibt (Partyhut, Krone, Zylinder, Abi-Hut). Wer während eines Events ein Level schafft, bekommt den Hut und behält ihn. Getragen wird er im Figuren-Bildschirm (gilt für alle Figuren). Eingetragen sind „Start der Kartenaktion“ (bis 31.12.2026), Mottowoche und Abiball 2027 – die Daten bitte anpassen.
 
 ## Inhalt
 - **Tutorial „Erster Schultag“**
@@ -66,6 +102,7 @@ Ohne Editor aus dem Terminal: `godot --path godot`
 - Tutorial und 1-1 sind immer offen. Jedes weitere Pflichtlevel braucht das vorige.
 - Kapitel 2 öffnet sich nach dem Boss von Kapitel 1.
 - **Herausforderungen** (z. B. 1-4 Nachsitzen) sind optional und brauchen Medaillen aus ihrem Kapitel. „Weiter“ überspringt sie.
+- **Bonuslevel** (B-1 Lehrerzimmer) öffnen sich mit der Sammel-Belohnung ab 10 Lehrern.
 
 ## Kampfarenen und Boss
 - Zwei **Arena-Gitter** (`A`) auf gleicher Höhe bilden eine Arena. Wer hineinläuft, wird eingesperrt.
@@ -165,8 +202,10 @@ Startoptionen (nach `--`), z. B. `godot --path godot -- --level=2 --char=lehrer0
 | `--fresh` | leerer Spielstand, nichts wird gespeichert |
 | `--difficulty=X` | `entspannt`, `normal` oder `abi` |
 | `--touch` | Touch-Steuerung am PC anzeigen (Maus = Finger) |
-| `--screen=NAME` | direkt `intro`, `menu`, `levels`, `album`, `redeem`, `shop` oder `lexikon` öffnen |
+| `--screen=NAME` | direkt `intro`, `menu`, `levels`, `album`, `redeem`, `shop`, `lexikon`, `rangliste`, `erfolge` oder `einstellungen` öffnen |
 | `--no-intro` | ohne Intro ins Menü |
+| `--daily` | mit `--level=N`: als Tagesaufgabe spielen (heutige Zusatzregel) |
+| `--music-timing` | meldet, wann jedes Musikstück fertig erzeugt ist |
 | `--pause-test` | im Spiel nach 1 s das Pausenmenü öffnen |
 | `--touch-probe` | mit `--level=1 --touch`: simulierter Finger testet Stick und Sprung, gibt `TOUCH_RESULT …` aus |
 | `--bot --quit` | ein Testbot spielt das Level und gibt `BOT_RESULT …` aus |

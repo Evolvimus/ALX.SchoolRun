@@ -15,7 +15,8 @@ func _ready() -> void:
 	sound.pressed.connect(func():
 		var muted := Sfx.toggle_mute()
 		(sound.get_node("Icon") as TextureRect).texture = Art.tex("icon-mute" if muted else "icon-sound"))
-	var coins := UI.chip(self, "icon-coin", "%d" % Save.data["coins"], e.y - 86, 40, Color("#ffd23f"), 12)
+	UI.icon_button(self, "icon-gear", Vector2(e.y - 106, 40), func(): Nav.goto("einstellungen"), 52, 2.6)
+	var coins := UI.chip(self, "icon-coin", "%d" % Save.data["coins"], e.y - 146, 40, Color("#ffd23f"), 12)
 	var count := 0
 	for t in Chars.teachers:
 		if Save.is_unlocked(t["id"]):
@@ -23,20 +24,20 @@ func _ready() -> void:
 	UI.chip(self, "icon-card", "%d/%d" % [count, Chars.teachers.size()], coins.position.x - 10, 40, UI.TEXT, 12)
 
 	# --- Titel
-	var logo := UI.image(self, "leaf", Vector2(96, 120), 3.4)
+	var logo := UI.image(self, "leaf", Vector2(96, 108), 3.4)
 	logo.pivot_offset = logo.size / 2
 	logo.rotation_degrees = -14
 	var sway := logo.create_tween().set_loops().set_trans(Tween.TRANS_SINE)
 	sway.tween_property(logo, "rotation_degrees", -4.0, 2.2)
 	sway.tween_property(logo, "rotation_degrees", -14.0, 2.2)
-	UI.tag(self, "ALX", Vector2(150, 86), UI.YELLOW, 10)
-	var t := UI.label(self, "SCHOOLRUN", Vector2(146, 112), 32, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 500)
+	UI.tag(self, "ALX", Vector2(150, 74), UI.YELLOW, 10)
+	var t := UI.label(self, "SCHOOLRUN", Vector2(146, 100), 32, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 500)
 	UI.outline(t, 10)
-	UI.label(self, "Bring dem alten Ginkgo seine goldenen Blätter zurück.", Vector2(60, 168), 8, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT, 500)
+	UI.label(self, "Bring dem alten Ginkgo seine goldenen Blätter zurück.", Vector2(60, 154), 8, UI.MUTED, HORIZONTAL_ALIGNMENT_LEFT, 500)
 
 	# --- Spielen: wer das Tutorial noch nicht kennt, startet dort; sonst geht es mit dem nächsten Level weiter
 	var next := _next_level()
-	var play := UI.primary(self, "", Vector2(280, 236), func():
+	var play := UI.primary(self, "", Vector2(280, 222), func():
 		if next >= 0:
 			Nav.goto("game", { "level": next })
 		else:
@@ -54,8 +55,16 @@ func _ready() -> void:
 	for b in Bestiary.LIST:
 		if b["id"] in Save.data["seen"]:
 			found += 1
+	var daily_done := Daily.best_today() >= 0
+	var trophies := 0
+	for a in Achievements.LIST:
+		if Achievements.has(a["id"]):
+			trophies += 1
 	var tiles := [
 		["icon-map", "Schulplan", func(): Nav.goto("levels")],
+		["icon-calendar", "Täglich", func(): Nav.goto("game", { "level": Daily.level_index(), "daily": true })],
+		["icon-trophy", "Rangliste", func(): Nav.goto("rangliste")],
+		["icon-medal", "Erfolge", func(): Nav.goto("erfolge")],
 		["bust-" + Save.data["selected"], "Figuren", func(): Nav.goto("album")],
 		["icon-book", "Lexikon", func(): Nav.goto("lexikon")],
 		["icon-code", "Code", func(): Nav.goto("redeem")],
@@ -63,14 +72,26 @@ func _ready() -> void:
 	]
 	var buttons: Array[Control] = [play]
 	for i in tiles.size():
-		var b := UI.tile(self, tiles[i][0], tiles[i][1], Vector2(60 + 42 + i * 89, 350), tiles[i][2], 82, 96, 40)
+		var b := UI.tile(self, tiles[i][0], tiles[i][1], Vector2(60 + 52 + (i % 4) * 112, 318 + (i / 4) * 92), tiles[i][2], 104, 84, 34)
 		buttons.append(b)
-		if tiles[i][1] == "Lexikon":
-			UI.label(b, "%d/%d" % [found, Bestiary.LIST.size()], Vector2(74, 8), 7, UI.BLUE, HORIZONTAL_ALIGNMENT_RIGHT, 70)
+		var badge := ""
+		var badge_col := UI.BLUE
+		match tiles[i][1]:
+			"Lexikon": badge = "%d/%d" % [found, Bestiary.LIST.size()]
+			"Erfolge":
+				badge = "%d/%d" % [trophies, Achievements.LIST.size()]
+				badge_col = UI.YELLOW
+			"Täglich":
+				badge = "OK" if daily_done else "NEU"
+				badge_col = UI.GREEN if daily_done else UI.RED
+		if badge != "":
+			UI.label(b, badge, Vector2(96, 7), 7, badge_col, HORIZONTAL_ALIGNMENT_RIGHT, 90)
+		if tiles[i][0] == "icon-trophy":
+			(b.get_child(0) as TextureRect).modulate = UI.YELLOW
 	for i in buttons.size():
 		UI.pop_in(buttons[i], 0.04 * i)
-	# Steuerung mit Pfeiltasten: von „Spielen“ nach unten in die Kachelreihe
-	for i in range(1, buttons.size()):
+	# Steuerung mit Pfeiltasten: von „Spielen“ nach unten in die Kachelreihen
+	for i in range(1, 5):
 		buttons[i].focus_neighbor_top = buttons[0].get_path()
 	buttons[0].focus_neighbor_bottom = buttons[1].get_path()
 	play.grab_focus.call_deferred()
@@ -84,6 +105,7 @@ func _ready() -> void:
 	shadow.position = Vector2(cx - 120, 372)
 	var fig := UI.image(self, "char-" + c["id"], Vector2(cx, 300), Chars.display_scale(c) * 1.7)
 	fig.position.y = 394 - fig.size.y
+	Skins.attach_rect(fig, c["id"])
 	var tw := fig.create_tween().set_loops().set_trans(Tween.TRANS_SINE)
 	tw.tween_property(fig, "position:y", fig.position.y - 6, 1.0)
 	tw.tween_property(fig, "position:y", fig.position.y, 1.0)

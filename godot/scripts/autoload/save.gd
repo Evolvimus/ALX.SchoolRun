@@ -14,6 +14,11 @@ func _ready() -> void:
 		var parsed = JSON.parse_string(FileAccess.get_file_as_string(PATH))
 		if parsed is Dictionary:
 			data.merge(parsed, true)
+			# neue Unterschlüssel in verschachtelten Einstellungen ergänzen
+			var d := _defaults()
+			for k in ["settings", "stats"]:
+				if data[k] is Dictionary:
+					(data[k] as Dictionary).merge(d[k], false)
 	persist()
 
 
@@ -23,6 +28,13 @@ func _defaults() -> Dictionary:
 		"best_times": {}, "best_leaves": {}, "progress": 1, "muted": false,
 		"seen": [], "defeated": {}, "mock_used": [],
 		"difficulty": "normal", "medals": {}, "hefte": {},
+		# Einstellungen
+		"settings": { "music": 0.6, "sfx": 1.0, "vibration": true, "touch_size": 1.0, "lefty": false, "intro": true, "ghost": true },
+		# Rangliste: zufällig erzeugter Spielername (keine freie Eingabe)
+		"player_name": "",
+		"achievements": [], "ghosts": {}, "daily": {}, "rewards": [], "skin": "", "skins_owned": [],
+		"stats": { "jumps": 0, "defeats": 0, "deaths": 0, "leaves_total": 0, "levels_done": 0, "dailies": 0 },
+		"leaderboard_mock": {},
 	}
 
 
@@ -38,6 +50,9 @@ func unlock(id: String) -> void:
 	if not id in data["unlocked"]:
 		data["unlocked"].append(id)
 	persist()
+	if is_inside_tree() and Levels.list.size() > 0:
+		Rewards.check()
+		Achievements.check()
 
 
 func is_unlocked(id: String) -> bool:
